@@ -24,8 +24,9 @@ import (
 )
 
 type shaderRpsKey struct {
-	compositeMode graphicsdriver.CompositeMode
-	stencilMode   stencilMode
+	blend       graphicsdriver.Blend
+	stencilMode stencilMode
+	screen      bool
 }
 
 type Shader struct {
@@ -62,34 +63,31 @@ func (s *Shader) Dispose() {
 }
 
 func (s *Shader) init(device mtl.Device) error {
-	const (
-		v = "Vertex"
-		f = "Fragment"
-	)
-
-	src := msl.Compile(s.ir, v, f)
+	src := msl.Compile(s.ir)
 	lib, err := device.MakeLibrary(src, mtl.CompileOptions{})
 	if err != nil {
-		return fmt.Errorf("metal: device.MakeLibrary failed: %v, source: %s", err, src)
+		return fmt.Errorf("metal: device.MakeLibrary failed: %w, source: %s", err, src)
 	}
-	vs, err := lib.MakeFunction(v)
+	vs, err := lib.MakeFunction(msl.VertexName)
 	if err != nil {
-		return fmt.Errorf("metal: lib.MakeFunction for vertex failed: %v, source: %s", err, src)
+		return fmt.Errorf("metal: lib.MakeFunction for vertex failed: %w, source: %s", err, src)
 	}
-	fs, err := lib.MakeFunction(f)
+	fs, err := lib.MakeFunction(msl.FragmentName)
 	if err != nil {
-		return fmt.Errorf("metal: lib.MakeFunction for fragment failed: %v, source: %s", err, src)
+		return fmt.Errorf("metal: lib.MakeFunction for fragment failed: %w, source: %s", err, src)
 	}
 	s.fs = fs
 	s.vs = vs
 	return nil
 }
 
-func (s *Shader) RenderPipelineState(device mtl.Device, compositeMode graphicsdriver.CompositeMode, stencilMode stencilMode) (mtl.RenderPipelineState, error) {
-	if rps, ok := s.rpss[shaderRpsKey{
-		compositeMode: compositeMode,
-		stencilMode:   stencilMode,
-	}]; ok {
+func (s *Shader) RenderPipelineState(view *view, blend graphicsdriver.Blend, stencilMode stencilMode, screen bool) (mtl.RenderPipelineState, error) {
+	key := shaderRpsKey{
+		blend:       blend,
+		stencilMode: stencilMode,
+		screen:      screen,
+	}
+	if rps, ok := s.rpss[key]; ok {
 		return rps, nil
 	}
 
@@ -102,28 +100,31 @@ func (s *Shader) RenderPipelineState(device mtl.Device, compositeMode graphicsdr
 	}
 
 	// TODO: For the precise pixel format, whether the render target is the screen or not must be considered.
-	rpld.ColorAttachments[0].PixelFormat = mtl.PixelFormatRGBA8UNorm
+	pix := mtl.PixelFormatRGBA8UNorm
+	if screen {
+		pix = view.colorPixelFormat()
+	}
+	rpld.ColorAttachments[0].PixelFormat = pix
 	rpld.ColorAttachments[0].BlendingEnabled = true
 
-	src, dst := compositeMode.Operations()
-	rpld.ColorAttachments[0].DestinationAlphaBlendFactor = operationToBlendFactor(dst)
-	rpld.ColorAttachments[0].DestinationRGBBlendFactor = operationToBlendFactor(dst)
-	rpld.ColorAttachments[0].SourceAlphaBlendFactor = operationToBlendFactor(src)
-	rpld.ColorAttachments[0].SourceRGBBlendFactor = operationToBlendFactor(src)
-	if stencilMode == prepareStencil {
-		rpld.ColorAttachments[0].WriteMask = mtl.ColorWriteMaskNone
-	} else {
+	rpld.ColorAttachments[0].DestinationAlphaBlendFactor = blendFactorToMetalBlendFactor(blend.BlendFactorDestinationAlpha)
+	rpld.ColorAttachments[0].DestinationRGBBlendFactor = blendFactorToMetalBlendFactor(blend.BlendFactorDestinationRGB)
+	rpld.ColorAttachments[0].SourceAlphaBlendFactor = blendFactorToMetalBlendFactor(blend.BlendFactorSourceAlpha)
+	rpld.ColorAttachments[0].SourceRGBBlendFactor = blendFactorToMetalBlendFactor(blend.BlendFactorSourceRGB)
+	rpld.ColorAttachments[0].AlphaBlendOperation = blendOperationToMetalBlendOperation(blend.BlendOperationAlpha)
+	rpld.ColorAttachments[0].RGBBlendOperation = blendOperationToMetalBlendOperation(blend.BlendOperationRGB)
+
+	if stencilMode == noStencil || stencilMode == drawWithStencil {
 		rpld.ColorAttachments[0].WriteMask = mtl.ColorWriteMaskAll
+	} else {
+		rpld.ColorAttachments[0].WriteMask = mtl.ColorWriteMaskNone
 	}
 
-	rps, err := device.MakeRenderPipelineState(rpld)
+	rps, err := view.getMTLDevice().MakeRenderPipelineState(rpld)
 	if err != nil {
 		return mtl.RenderPipelineState{}, err
 	}
 
-	s.rpss[shaderRpsKey{
-		compositeMode: compositeMode,
-		stencilMode:   stencilMode,
-	}] = rps
+	s.rpss[key] = rps
 	return rps, nil
 }

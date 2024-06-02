@@ -22,6 +22,7 @@ package ca
 import (
 	"errors"
 	"fmt"
+	"runtime"
 	"unsafe"
 
 	"github.com/ebitengine/purego"
@@ -47,24 +48,37 @@ type MetalLayer struct {
 	metalLayer objc.ID
 }
 
-var (
-	coreGraphics                = purego.Dlopen("/System/Library/Frameworks/CoreGraphics.framework/Versions/Current/CoreGraphics", purego.RTLD_GLOBAL)
-	_CGColorSpaceCreateWithName = purego.Dlsym(coreGraphics, "CGColorSpaceCreateWithName")
-	_CGColorSpaceRelease        = purego.Dlsym(coreGraphics, "CGColorSpaceRelease")
-	kCGColorSpaceDisplayP3      = purego.Dlsym(coreGraphics, "kCGColorSpaceDisplayP3")
-)
-
 // MakeMetalLayer creates a new Core Animation Metal layer.
 //
 // Reference: https://developer.apple.com/documentation/quartzcore/cametallayer.
-func MakeMetalLayer() MetalLayer {
-	layer := objc.ID(objc.GetClass("CAMetalLayer")).Send(objc.RegisterName("new"))
-	if !cocoa.IsIOS {
-		colorspace, _, _ := purego.SyscallN(_CGColorSpaceCreateWithName, **(**uintptr)(unsafe.Pointer(&kCGColorSpaceDisplayP3))) // Dlsym returns pointer to symbol so dereference it
-		layer.Send(objc.RegisterName("setColorspace:"), colorspace)
-		purego.SyscallN(_CGColorSpaceRelease, colorspace)
+func MakeMetalLayer() (MetalLayer, error) {
+	coreGraphics, err := purego.Dlopen("/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics", purego.RTLD_LAZY|purego.RTLD_GLOBAL)
+	if err != nil {
+		return MetalLayer{}, err
 	}
-	return MetalLayer{layer}
+
+	cgColorSpaceCreateWithName, err := purego.Dlsym(coreGraphics, "CGColorSpaceCreateWithName")
+	if err != nil {
+		return MetalLayer{}, err
+	}
+
+	cgColorSpaceRelease, err := purego.Dlsym(coreGraphics, "CGColorSpaceRelease")
+	if err != nil {
+		return MetalLayer{}, err
+	}
+
+	kCGColorSpaceDisplayP3, err := purego.Dlsym(coreGraphics, "kCGColorSpaceDisplayP3")
+	if err != nil {
+		return MetalLayer{}, err
+	}
+
+	layer := objc.ID(objc.GetClass("CAMetalLayer")).Send(objc.RegisterName("new"))
+	if runtime.GOOS != "ios" {
+		colorspace, _, _ := purego.SyscallN(cgColorSpaceCreateWithName, **(**uintptr)(unsafe.Pointer(&kCGColorSpaceDisplayP3))) // Dlsym returns pointer to symbol so dereference it
+		layer.Send(objc.RegisterName("setColorspace:"), colorspace)
+		purego.SyscallN(cgColorSpaceRelease, colorspace)
+	}
+	return MetalLayer{layer}, nil
 }
 
 // Layer implements the Layer interface.
@@ -125,7 +139,7 @@ func (ml MetalLayer) SetMaximumDrawableCount(count int) {
 //
 // Reference: https://developer.apple.com/documentation/quartzcore/cametallayer/2887087-displaysyncenabled.
 func (ml MetalLayer) SetDisplaySyncEnabled(enabled bool) {
-	if cocoa.IsIOS {
+	if runtime.GOOS == "ios" {
 		return
 	}
 	ml.metalLayer.Send(objc.RegisterName("setDisplaySyncEnabled:"), enabled)

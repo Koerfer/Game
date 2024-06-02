@@ -53,7 +53,9 @@ func (s *Square) Click(x, y float64) {
 	}
 }
 
-func (s *Square) Update(timeDelta, gravity float64) {
+func (s *Square) Update(timeDelta, gravity float64) bool {
+	var bounced bool
+
 	screenWidth, screenHeight := ebiten.WindowSize()
 	if s.PosX < 0 {
 		s.MovementX *= -1
@@ -73,9 +75,11 @@ func (s *Square) Update(timeDelta, gravity float64) {
 		s.MovementY *= -1
 		s.AccelerationY *= -s.BounceY
 		s.PosY = float64(screenHeight) - float64(s.Size)
+		bounced = true
 	}
 
 	s.AccelerationY += gravity * timeDelta
 	s.PosX += (s.MovementX + s.AccelerationX) * timeDelta
 	s.PosY += (s.MovementY + s.AccelerationY) * timeDelta
+	return bounced
 }

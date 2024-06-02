@@ -25,7 +25,7 @@ package mtl
 import (
 	"errors"
 	"fmt"
-	"reflect"
+	"runtime"
 	"unsafe"
 
 	"github.com/ebitengine/purego"
@@ -34,20 +34,28 @@ import (
 	"github.com/hajimehoshi/ebiten/v2/internal/cocoa"
 )
 
+// GPUFamily represents the functionality for families of GPUs.
+//
+// Reference: https://developer.apple.com/documentation/metal/mtlgpufamily
+type GPUFamily int
+
+const (
+	GPUFamilyApple1 GPUFamily = 1001
+	GPUFamilyApple2 GPUFamily = 1002
+	GPUFamilyApple3 GPUFamily = 1003
+	GPUFamilyApple4 GPUFamily = 1004
+	GPUFamilyApple5 GPUFamily = 1005
+	GPUFamilyApple6 GPUFamily = 1006
+	GPUFamilyApple7 GPUFamily = 1007
+	GPUFamilyApple8 GPUFamily = 1008
+
+	GPUFamilyMac2 GPUFamily = 2002
+)
+
 // FeatureSet defines a specific platform, hardware, and software configuration.
 //
 // Reference: https://developer.apple.com/documentation/metal/mtlfeatureset.
 type FeatureSet uint16
-
-// The device feature sets that define specific platform, hardware, and software configurations.
-const (
-	MacOSGPUFamily1V1          FeatureSet = 10000 // The GPU family 1, version 1 feature set for macOS.
-	MacOSGPUFamily1V2          FeatureSet = 10001 // The GPU family 1, version 2 feature set for macOS.
-	MacOSReadWriteTextureTier2 FeatureSet = 10002 // The read-write texture, tier 2 feature set for macOS.
-	MacOSGPUFamily1V3          FeatureSet = 10003 // The GPU family 1, version 3 feature set for macOS.
-	MacOSGPUFamily1V4          FeatureSet = 10004 // The GPU family 1, version 4 feature set for macOS.
-	MacOSGPUFamily2V1          FeatureSet = 10005 // The GPU family 2, version 1 feature set for macOS.
-)
 
 const (
 	FeatureSet_iOS_GPUFamily1_v1           FeatureSet = 0
@@ -150,7 +158,7 @@ const (
 	StoreActionCustomSampleDepthStore     StoreAction = 5
 )
 
-// StorageMode defines defines the memory location and access permissions of a resource.
+// StorageMode defines the memory location and access permissions of a resource.
 //
 // Reference: https://developer.apple.com/documentation/metal/mtlstoragemode.
 type StorageMode uint8
@@ -289,6 +297,16 @@ const (
 	BlendFactorOneMinusSource1Alpha     BlendFactor = 18
 )
 
+type BlendOperation uint8
+
+const (
+	BlendOperationAdd             BlendOperation = 0
+	BlendOperationSubtract        BlendOperation = 1
+	BlendOperationReverseSubtract BlendOperation = 2
+	BlendOperationMin             BlendOperation = 3
+	BlendOperationMax             BlendOperation = 4
+)
+
 type ColorWriteMask uint8
 
 const (
@@ -337,11 +355,6 @@ const (
 	CommandBufferStatusError       CommandBufferStatus = 5 // Execution of the command buffer was aborted due to an error during execution.
 )
 
-var (
-	metal                         = purego.Dlopen("Metal.framework/Metal", purego.RTLD_GLOBAL)
-	_MTLCreateSystemDefaultDevice = purego.Dlsym(metal, "MTLCreateSystemDefaultDevice")
-)
-
 // Resource represents a memory allocation for storing specialized data
 // that is accessible to the GPU.
 //
@@ -382,6 +395,8 @@ type RenderPipelineColorAttachmentDescriptor struct {
 	DestinationRGBBlendFactor   BlendFactor
 	SourceAlphaBlendFactor      BlendFactor
 	SourceRGBBlendFactor        BlendFactor
+	AlphaBlendOperation         BlendOperation
+	RGBBlendOperation           BlendOperation
 
 	WriteMask ColorWriteMask
 }
@@ -474,6 +489,7 @@ var (
 	sel_isHeadless                                                                                                                    = objc.RegisterName("isHeadless")
 	sel_isLowPower                                                                                                                    = objc.RegisterName("isLowPower")
 	sel_name                                                                                                                          = objc.RegisterName("name")
+	sel_supportsFamily                                                                                                                = objc.RegisterName("supportsFamily:")
 	sel_supportsFeatureSet                                                                                                            = objc.RegisterName("supportsFeatureSet:")
 	sel_newCommandQueue                                                                                                               = objc.RegisterName("newCommandQueue")
 	sel_newLibraryWithSource_options_error                                                                                            = objc.RegisterName("newLibraryWithSource:options:error:")
@@ -491,6 +507,8 @@ var (
 	sel_setDestinationRGBBlendFactor                                                                                                  = objc.RegisterName("setDestinationRGBBlendFactor:")
 	sel_setSourceAlphaBlendFactor                                                                                                     = objc.RegisterName("setSourceAlphaBlendFactor:")
 	sel_setSourceRGBBlendFactor                                                                                                       = objc.RegisterName("setSourceRGBBlendFactor:")
+	sel_setAlphaBlendOperation                                                                                                        = objc.RegisterName("setAlphaBlendOperation:")
+	sel_setRgbBlendOperation                                                                                                          = objc.RegisterName("setRgbBlendOperation:")
 	sel_setWriteMask                                                                                                                  = objc.RegisterName("setWriteMask:")
 	sel_setStencilAttachmentPixelFormat                                                                                               = objc.RegisterName("setStencilAttachmentPixelFormat:")
 	sel_newRenderPipelineStateWithDescriptor_error                                                                                    = objc.RegisterName("newRenderPipelineStateWithDescriptor:error:")
@@ -544,22 +562,33 @@ var (
 	sel_newDepthStencilStateWithDescriptor                                                                                            = objc.RegisterName("newDepthStencilStateWithDescriptor:")
 	sel_replaceRegion_mipmapLevel_withBytes_bytesPerRow                                                                               = objc.RegisterName("replaceRegion:mipmapLevel:withBytes:bytesPerRow:")
 	sel_getBytes_bytesPerRow_fromRegion_mipmapLevel                                                                                   = objc.RegisterName("getBytes:bytesPerRow:fromRegion:mipmapLevel:")
+	sel_respondsToSelector                                                                                                            = objc.RegisterName("respondsToSelector:")
 )
 
 // CreateSystemDefaultDevice returns the preferred system default Metal device.
 //
 // Reference: https://developer.apple.com/documentation/metal/1433401-mtlcreatesystemdefaultdevice.
-func CreateSystemDefaultDevice() (Device, bool) {
-	d, _, _ := purego.SyscallN(_MTLCreateSystemDefaultDevice)
+func CreateSystemDefaultDevice() (Device, error) {
+	metal, err := purego.Dlopen("/System/Library/Frameworks/Metal.framework/Metal", purego.RTLD_LAZY|purego.RTLD_GLOBAL)
+	if err != nil {
+		return Device{}, err
+	}
+
+	mtlCreateSystemDefaultDevice, err := purego.Dlsym(metal, "MTLCreateSystemDefaultDevice")
+	if err != nil {
+		return Device{}, err
+	}
+
+	d, _, _ := purego.SyscallN(mtlCreateSystemDefaultDevice)
 	if d == 0 {
-		return Device{}, false
+		return Device{}, fmt.Errorf("mtl: MTLCreateSystemDefaultDevice returned 0")
 	}
 	var (
 		headless bool
 		lowPower bool
 		name     string
 	)
-	if !cocoa.IsIOS {
+	if runtime.GOOS != "ios" {
 		headless = int(objc.ID(d).Send(sel_isHeadless)) != 0
 		lowPower = int(objc.ID(d).Send(sel_isLowPower)) != 0
 	}
@@ -570,11 +599,25 @@ func CreateSystemDefaultDevice() (Device, bool) {
 		Headless: headless,
 		LowPower: lowPower,
 		Name:     name,
-	}, true
+	}, nil
 }
 
 // Device returns the underlying id<MTLDevice> pointer.
 func (d Device) Device() unsafe.Pointer { return *(*unsafe.Pointer)(unsafe.Pointer(&d.device)) }
+
+// RespondsToSelector returns a Boolean value that indicates whether the receiver implements or inherits a method that can respond to a specified message.
+//
+// Reference: https://developer.apple.com/documentation/objectivec/1418956-nsobject/1418583-respondstoselector
+func (d Device) RespondsToSelector(sel objc.SEL) bool {
+	return d.device.Send(sel_respondsToSelector, sel) != 0
+}
+
+// SupportsFamily returns a Boolean value that indicates whether the GPU device supports the feature set of a specific GPU family.
+//
+// Reference: https://developer.apple.com/documentation/metal/mtldevice/3143473-supportsfamily
+func (d Device) SupportsFamily(gpuFamily GPUFamily) bool {
+	return d.device.Send(sel_supportsFamily, uintptr(gpuFamily)) != 0
+}
 
 // SupportsFeatureSet reports whether device d supports feature set fs.
 //
@@ -623,6 +666,8 @@ func (d Device) MakeRenderPipelineState(rpd RenderPipelineDescriptor) (RenderPip
 	colorAttachments0.Send(sel_setDestinationRGBBlendFactor, uintptr(rpd.ColorAttachments[0].DestinationRGBBlendFactor))
 	colorAttachments0.Send(sel_setSourceAlphaBlendFactor, uintptr(rpd.ColorAttachments[0].SourceAlphaBlendFactor))
 	colorAttachments0.Send(sel_setSourceRGBBlendFactor, uintptr(rpd.ColorAttachments[0].SourceRGBBlendFactor))
+	colorAttachments0.Send(sel_setAlphaBlendOperation, uintptr(rpd.ColorAttachments[0].AlphaBlendOperation))
+	colorAttachments0.Send(sel_setRgbBlendOperation, uintptr(rpd.ColorAttachments[0].RGBBlendOperation))
 	colorAttachments0.Send(sel_setWriteMask, uintptr(rpd.ColorAttachments[0].WriteMask))
 	renderPipelineDescriptor.Send(sel_setStencilAttachmentPixelFormat, uintptr(rpd.StencilAttachmentPixelFormat))
 	var err cocoa.NSError
@@ -681,7 +726,7 @@ func (d Device) MakeDepthStencilState(dsd DepthStencilDescriptor) DepthStencilSt
 	backFaceStencil.Send(sel_setStencilFailureOperation, uintptr(dsd.BackFaceStencil.StencilFailureOperation))
 	backFaceStencil.Send(sel_setDepthFailureOperation, uintptr(dsd.BackFaceStencil.DepthFailureOperation))
 	backFaceStencil.Send(sel_setDepthStencilPassOperation, uintptr(dsd.BackFaceStencil.DepthStencilPassOperation))
-	backFaceStencil.Send(sel_setStencilCompareFunction, uintptr(dsd.BackFaceStencil.StencilCompareFunction)) //TODO
+	backFaceStencil.Send(sel_setStencilCompareFunction, uintptr(dsd.BackFaceStencil.StencilCompareFunction))
 	frontFaceStencil := depthStencilDescriptor.Send(sel_frontFaceStencil)
 	frontFaceStencil.Send(sel_setStencilFailureOperation, uintptr(dsd.FrontFaceStencil.StencilFailureOperation))
 	frontFaceStencil.Send(sel_setDepthFailureOperation, uintptr(dsd.FrontFaceStencil.DepthFailureOperation))
@@ -894,14 +939,7 @@ func (rce RenderCommandEncoder) SetFragmentTexture(texture Texture, index int) {
 }
 
 func (rce RenderCommandEncoder) SetBlendColor(red, green, blue, alpha float32) {
-	inv := cocoa.NSInvocation_invocationWithMethodSignature(cocoa.NSMethodSignature_signatureWithObjCTypes("v@:ffff"))
-	inv.SetTarget(rce.commandEncoder)
-	inv.SetSelector(sel_setBlendColorRedGreenBlueAlpha)
-	inv.SetArgumentAtIndex(unsafe.Pointer(&red), 2)
-	inv.SetArgumentAtIndex(unsafe.Pointer(&green), 3)
-	inv.SetArgumentAtIndex(unsafe.Pointer(&blue), 4)
-	inv.SetArgumentAtIndex(unsafe.Pointer(&alpha), 5)
-	inv.Invoke()
+	rce.commandEncoder.Send(sel_setBlendColorRedGreenBlueAlpha, red, green, blue, alpha)
 }
 
 // SetDepthStencilState sets the depth and stencil test state.
@@ -941,14 +979,14 @@ type BlitCommandEncoder struct {
 //
 // Reference: https://developer.apple.com/documentation/metal/mtlblitcommandencoder/1400775-synchronize.
 func (bce BlitCommandEncoder) Synchronize(resource Resource) {
-	if cocoa.IsIOS {
+	if runtime.GOOS == "ios" {
 		return
 	}
 	bce.commandEncoder.Send(sel_synchronizeResource, resource.resource())
 }
 
 func (bce BlitCommandEncoder) SynchronizeTexture(texture Texture, slice int, level int) {
-	if cocoa.IsIOS {
+	if runtime.GOOS == "ios" {
 		return
 	}
 	bce.commandEncoder.Send(sel_synchronizeTexture_slice_level, texture.texture, slice, level)
@@ -1069,19 +1107,8 @@ func (b Buffer) Length() uintptr {
 
 func (b Buffer) CopyToContents(data unsafe.Pointer, lengthInBytes uintptr) {
 	contents := b.buffer.Send(sel_contents)
-	// use unsafe.Slice when ebitengine reaches 1.17
-	var contentSlice []byte
-	contentHeader := (*reflect.SliceHeader)(unsafe.Pointer(&contentSlice))
-	contentHeader.Data = uintptr(contents)
-	contentHeader.Len = int(lengthInBytes)
-	contentHeader.Cap = int(lengthInBytes)
-	var dataSlice []byte
-	dataHeader := (*reflect.SliceHeader)(unsafe.Pointer(&dataSlice))
-	dataHeader.Data = uintptr(data)
-	dataHeader.Len = int(lengthInBytes)
-	dataHeader.Cap = int(lengthInBytes)
-	copy(contentSlice, dataSlice)
-	if !cocoa.IsIOS {
+	copy(unsafe.Slice((*byte)(unsafe.Pointer(contents)), lengthInBytes), unsafe.Slice((*byte)(data), lengthInBytes))
+	if runtime.GOOS != "ios" {
 		b.buffer.Send(sel_didModifyRange, 0, lengthInBytes)
 	}
 }
