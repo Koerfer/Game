@@ -1,9 +1,12 @@
 package game
 
 import (
-	"game/game/draw"
+	"fmt"
+	"game/game/entities"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
+	"github.com/hajimehoshi/ebiten/v2/inpututil"
+	"time"
 )
 
 const (
@@ -15,38 +18,26 @@ type Game struct {
 	touchIDs []ebiten.TouchID
 	op       ebiten.DrawImageOptions
 
-	Squares []*Square
-	Gravity float64
-}
-
-type Square struct {
-	Size          int
-	PosX          float64
-	PosY          float64
-	MovementX     float64
-	AccelerationX float64
-	MovementY     float64
-	AccelerationY float64
-	Colour        draw.Colour
-	Alpha         uint8
+	Squares            []*entities.Square
+	Gravity            float64
+	PreviousUpdateTime time.Time
 }
 
 func (g *Game) Update() error {
+	timeDelta := float64(time.Since(g.PreviousUpdateTime).Milliseconds())
+	g.PreviousUpdateTime = time.Now()
+
 	g.touchIDs = ebiten.AppendTouchIDs(g.touchIDs[:0])
 
-	for _, square := range g.Squares {
-		if square.PosX < 0 || square.PosX+float64(square.Size) > ScreenWidth {
-			square.MovementX *= -1
-			square.AccelerationX *= -1
+	if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
+		x, y := ebiten.CursorPosition()
+		for _, square := range g.Squares {
+			square.Click(float64(x), float64(y))
 		}
-		if square.PosY < 0 || square.PosY+float64(square.Size) > ScreenHeight {
-			square.MovementY *= -1
-			square.AccelerationY *= -1
-		}
+	}
 
-		square.AccelerationY += g.Gravity
-		square.PosX += square.MovementX + square.AccelerationX
-		square.PosY += square.MovementY + square.AccelerationY
+	for _, square := range g.Squares {
+		square.Update(ScreenWidth, ScreenHeight, timeDelta, g.Gravity)
 	}
 
 	return nil
@@ -57,9 +48,16 @@ func (g *Game) Layout(outsideWidth, outsideHeight int) (int, int) {
 }
 
 func (g *Game) Draw(screen *ebiten.Image) {
-	ebitenutil.DebugPrint(screen, "Test debug")
-
 	for _, square := range g.Squares {
-		draw.Square(screen, square.Colour, square.Alpha, square.Size, square.PosX, square.PosY)
+		g.op.GeoM.Reset()
+		g.op.GeoM.Translate(square.PosX, square.PosY)
+
+		screen.DrawImage(square.Image, &ebiten.DrawImageOptions{
+			GeoM:          g.op.GeoM,
+			CompositeMode: ebiten.CompositeModeSourceOver,
+		})
 	}
+	msg := fmt.Sprintf(`TPS: %0.2f
+FPS: %0.2f`, ebiten.ActualTPS(), ebiten.ActualFPS())
+	ebitenutil.DebugPrint(screen, msg)
 }
