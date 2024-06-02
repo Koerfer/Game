@@ -23,6 +23,19 @@ type Game struct {
 	PreviousUpdateTime time.Time
 }
 
+func Init() *Game {
+	g := &Game{}
+	g.Squares = []*entities.Square{}
+	g.Squares = append(g.Squares,
+		entities.NewSquare(255, 0, 0, 90, 100, 300, 200, 0.11, -0.09, 0, 0, 1, 0.9),
+		entities.NewSquare(0, 255, 0, 90, 120, 100, 500, 0.05, 0.1, 0, 0, 1, 0.9),
+	)
+	g.Gravity = 0.0005
+	g.PreviousUpdateTime = time.Now()
+
+	return g
+}
+
 func (g *Game) Update() error {
 	timeDelta := float64(time.Since(g.PreviousUpdateTime).Milliseconds())
 	g.PreviousUpdateTime = time.Now()
