@@ -9,11 +9,6 @@ import (
 	"time"
 )
 
-const (
-	ScreenWidth  = 800
-	ScreenHeight = 600
-)
-
 type Game struct {
 	touchIDs []ebiten.TouchID
 	op       ebiten.DrawImageOptions
@@ -25,6 +20,7 @@ type Game struct {
 
 func Init() *Game {
 	g := &Game{}
+	ebiten.SetTPS(120)
 	g.Squares = []*entities.Square{}
 	g.Squares = append(g.Squares,
 		entities.NewSquare(255, 0, 0, 90, 100, 300, 200, 0.11, -0.09, 0, 0, 1, 0.9),
@@ -50,14 +46,14 @@ func (g *Game) Update() error {
 	}
 
 	for _, square := range g.Squares {
-		square.Update(ScreenWidth, ScreenHeight, timeDelta, g.Gravity)
+		square.Update(timeDelta, g.Gravity)
 	}
 
 	return nil
 }
 
 func (g *Game) Layout(outsideWidth, outsideHeight int) (int, int) {
-	return ScreenWidth, ScreenHeight
+	return outsideWidth, outsideHeight
 }
 
 func (g *Game) Draw(screen *ebiten.Image) {
