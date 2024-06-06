@@ -6,7 +6,6 @@ import (
 	"game/font"
 	"image/color"
 	"log"
-	"math/rand"
 	"time"
 
 	"game/game/entities"
@@ -16,38 +15,48 @@ import (
 )
 
 type Game struct {
-	touchIDs []ebiten.TouchID
-	op       ebiten.DrawImageOptions
-	font     *text.GoTextFaceSource
+	touchIDs   []ebiten.TouchID
+	op         ebiten.DrawImageOptions
+	font       *text.GoTextFaceSource
+	WindowSize *WindowSize
 
-	Squares            []*entities.Square
-	Gravity            float64
 	PreviousUpdateTime time.Time
-
-	LastBounceTime  time.Time
-	LastAddedSquare time.Time
-	HighScore       time.Duration
+	MenuItems          []*entities.MenuItem
+	Dividers           []*entities.Divider
 }
 
 func Init() *Game {
 	g := &Game{}
 	ebiten.SetTPS(120)
-	g.Squares = []*entities.Square{}
-	g.Squares = append(g.Squares,
-		entities.NewSquare(255, 0, 0, 90, 100, 300, 200, 0.11, -0.09, 0, 0, 1, 0.9),
-		entities.NewSquare(0, 255, 0, 90, 120, 100, 500, 0.05, 0.1, 0, 0, 1, 0.9),
-	)
-	g.Gravity = 0.0005
 	g.PreviousUpdateTime = time.Now()
-
 	s, err := text.NewGoTextFaceSource(bytes.NewReader(font.MonoBold))
 	if err != nil {
 		log.Fatal(err)
 	}
 	g.font = s
+	screenWidth, screenHeight := ebiten.WindowSize()
+	g.WindowSize = &WindowSize{
+		PreviousScreenWidth:  18,
+		PreviousScreenHeight: 18,
+		CurrentScreenWidth:   screenWidth,
+		CurrentScreenHeight:  screenHeight,
+	}
 
-	g.LastBounceTime = time.Now()
-	g.LastAddedSquare = time.Now()
+	white := color.RGBA{R: 255, G: 255, B: 255, A: 255}
+	black := color.RGBA{R: 0, G: 0, B: 0, A: 255}
+	green := color.RGBA{R: 0, G: 255, B: 0, A: 255}
+	blue := color.RGBA{R: 0, G: 0, B: 255, A: 255}
+	menuHeader := &entities.MenuItem{}
+	menuHeader.Init(4, 2, 0, 0, true, "MENU", s, 2 /*text*/, white /*background*/, black /*border*/, black, nil)
+	menuCards := &entities.MenuItem{}
+	menuCards.Init(4, 2, 0, 2, true, "CARDS", s, 1 /*text*/, white /*background*/, black /*border*/, blue, nil)
+	menuTech := &entities.MenuItem{}
+	menuTech.Init(4, 2, 0, 4, true, "TECH", s, 1 /*text*/, white /*background*/, black /*border*/, green, nil)
+	g.MenuItems = append(g.MenuItems, menuHeader, menuCards, menuTech)
+
+	menuDivider := &entities.Divider{}
+	menuDivider.Init(true, 4, 50, color.RGBA{R: 255, G: 255, B: 255, A: 0})
+	g.Dividers = append(g.Dividers, menuDivider)
 
 	return g
 }
@@ -60,54 +69,47 @@ func (g *Game) Update() error {
 
 	if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
 		x, y := ebiten.CursorPosition()
-		for _, square := range g.Squares {
-			square.Click(float64(x), float64(y))
-		}
-	}
+		_ = x + y + int(timeDelta)
 
-	timeSinceLastBounce := time.Since(g.LastBounceTime)
-	var removeAdditionalSquares bool
-	for _, square := range g.Squares {
-		bounced := square.Update(timeDelta, g.Gravity)
-		if bounced {
-			removeAdditionalSquares = true
-			if g.HighScore < timeSinceLastBounce {
-				g.HighScore = timeSinceLastBounce
-			}
-			g.LastBounceTime = time.Now()
-			g.LastAddedSquare = time.Now()
-		}
-	}
-	if removeAdditionalSquares {
-		g.Squares = append(g.Squares[:2], g.Squares[len(g.Squares):]...)
-	}
-
-	if time.Now().Sub(g.LastAddedSquare) > time.Second*10 {
-		screenWidth, screenHeight := ebiten.WindowSize()
-		posX := float64(screenWidth)*0.1 + rand.Float64()*float64(screenWidth)*0.9
-		posY := float64(screenHeight)*0.1 + rand.Float64()*float64(screenHeight)*0.4
-		movX := (rand.Float64() - 0.5) * 0.2
-		movY := (rand.Float64() - 0.5) * 0.2
-		g.Squares = append(g.Squares,
-			entities.NewSquare(0, 0, 255, 90, 100, posX, posY, movX, movY, 0, 0, 1, 0.9),
-		)
-		g.LastAddedSquare = time.Now()
 	}
 
 	return nil
 }
 
-func (g *Game) Layout(outsideWidth, outsideHeight int) (int, int) {
-	return outsideWidth, outsideHeight
-}
-
 func (g *Game) Draw(screen *ebiten.Image) {
-	screenWidth, _ := ebiten.WindowSize()
-	for _, square := range g.Squares {
-		g.op.GeoM.Reset()
-		g.op.GeoM.Translate(square.PosX, square.PosY)
+	if g.WindowSize.Changed() {
+		if g.WindowSize.CalculateNewFactorAndCheckIfChanged() {
+			for _, menuItem := range g.MenuItems {
+				menuItem.UpdateSize(g.WindowSize.CurrentWidthFactor, g.WindowSize.CurrentHeightFactor)
+			}
+			for _, divider := range g.Dividers {
+				divider.UpdateSize(g.WindowSize.CurrentWidthFactor, g.WindowSize.CurrentHeightFactor)
+			}
 
-		screen.DrawImage(square.Image, &ebiten.DrawImageOptions{
+			g.WindowSize.PreviousHeightFactor = g.WindowSize.CurrentHeightFactor
+			g.WindowSize.PreviousWidthFactor = g.WindowSize.CurrentWidthFactor
+		}
+
+		g.WindowSize.PreviousScreenHeight = g.WindowSize.CurrentScreenHeight
+		g.WindowSize.PreviousScreenWidth = g.WindowSize.CurrentScreenWidth
+	}
+
+	for _, divider := range g.Dividers {
+		g.op.GeoM.Reset()
+		g.op.GeoM.Translate(float64(divider.CurrentPosX), float64(divider.CurrentPosY))
+		screen.DrawImage(divider.Image, &ebiten.DrawImageOptions{
+			GeoM: g.op.GeoM,
+		})
+	}
+
+	for _, menuItem := range g.MenuItems {
+		if !menuItem.Shown {
+			continue
+		}
+
+		g.op.GeoM.Reset()
+		g.op.GeoM.Translate(float64(menuItem.CurrentPosX), float64(menuItem.CurrentPosY))
+		screen.DrawImage(menuItem.Image, &ebiten.DrawImageOptions{
 			GeoM: g.op.GeoM,
 		})
 	}
@@ -116,25 +118,10 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	op.ColorScale.ScaleWithColor(color.White)
 
 	msg := fmt.Sprintf(`TPS: %0.2f - FPS: %0.2f`, ebiten.ActualTPS(), ebiten.ActualFPS())
-	op.GeoM.Translate(float64(screenWidth)-170, 0)
+	op.GeoM.Translate(float64(g.WindowSize.PreviousScreenWidth)-170, 0)
 	text.Draw(screen, msg, &text.GoTextFace{
 		Source: g.font,
 		Size:   12,
 	}, op)
 	op.GeoM.Reset()
-
-	timeSinceBounce := time.Since(g.LastBounceTime)
-	msg2 := fmt.Sprintf(`Current time: %02d:%02d:%03d`, int(timeSinceBounce.Minutes()), int(timeSinceBounce.Seconds())%60, int(timeSinceBounce.Milliseconds())%1000)
-	op.GeoM.Translate(0, 0)
-	text.Draw(screen, msg2, &text.GoTextFace{
-		Source: g.font,
-		Size:   24,
-	}, op)
-
-	msg3 := fmt.Sprintf(`Best time:     %02d:%02d:%03d`, int(g.HighScore.Minutes()), int(g.HighScore.Seconds())%60, int(g.HighScore.Milliseconds())%1000)
-	op.GeoM.Translate(0, 28)
-	text.Draw(screen, msg3, &text.GoTextFace{
-		Source: g.font,
-		Size:   24,
-	}, op)
 }
