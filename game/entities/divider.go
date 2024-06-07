@@ -11,6 +11,8 @@ type Divider struct {
 
 	BasePos     int
 	BaseLength  int
+	Width       int
+	Align       Align
 	CurrentPosX int
 	CurrentPosY int
 
@@ -21,14 +23,37 @@ type Divider struct {
 	ClickFunction func(int, int)
 }
 
-func (d *Divider) Init(vertical bool, position int, length int, colour color.Color) {
+type Align uint8
+
+const (
+	Middle Align = iota
+	Left
+	Right
+)
+
+func (d *Divider) Init(vertical bool, position, length, width int, align Align, colour color.Color) {
+	var leftUp int
+	var rightDown int
+
+	switch align {
+	case Middle:
+		leftUp = width / 2
+		rightDown = width / 2
+	case Left:
+		leftUp = 0
+		rightDown = width
+	case Right:
+		leftUp = width
+		rightDown = 0
+	}
+
 	xMin := 0
 	xMax := length
-	yMin := position
-	yMax := position + 5
+	yMin := position - leftUp
+	yMax := position + rightDown
 	if vertical {
-		xMin = position
-		xMax = position + 5
+		xMin = position - leftUp
+		xMax = position + rightDown
 		yMin = 0
 		yMax = length
 	}
@@ -43,22 +68,39 @@ func (d *Divider) Init(vertical bool, position int, length int, colour color.Col
 	d.Vertical = vertical
 	d.BasePos = position
 	d.BaseLength = length
+	d.Width = width
+	d.Align = align
 	d.CurrentPosX = xMin
 	d.CurrentPosY = yMin
 	d.Colour = colour
 	d.Image = menuImage
 }
 
-func (d *Divider) UpdateSize(widthFactor, heightFactor int) {
+func (d *Divider) UpdateSize(widthFactor, heightFactor float64) {
+	var leftUp float64
+	var rightDown float64
+
+	switch d.Align {
+	case Middle:
+		leftUp = float64(d.Width) / 2
+		rightDown = float64(d.Width) / 2
+	case Left:
+		leftUp = 0
+		rightDown = float64(d.Width)
+	case Right:
+		leftUp = float64(d.Width)
+		rightDown = 0
+	}
+
 	xMin := 0
-	xMax := d.BaseLength * widthFactor
-	yMin := d.BasePos * heightFactor
-	yMax := d.BasePos*heightFactor + 5
+	xMax := int(float64(d.BaseLength) * widthFactor)
+	yMin := int(float64(d.BasePos)*heightFactor - leftUp)
+	yMax := int(float64(d.BasePos)*heightFactor + rightDown)
 	if d.Vertical {
-		xMin = d.BasePos * widthFactor
-		xMax = d.BasePos*widthFactor + 5
+		xMin = int(float64(d.BasePos)*widthFactor - leftUp)
+		xMax = int(float64(d.BasePos)*widthFactor + rightDown)
 		yMin = 0
-		yMax = d.BaseLength * heightFactor
+		yMax = int(float64(d.BaseLength) * heightFactor)
 	}
 
 	menuImage := ebiten.NewImageWithOptions(image.Rectangle{

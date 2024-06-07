@@ -85,14 +85,14 @@ func (mi *MenuItem) Init(width, height, x, y int, shown bool, name string, font 
 
 }
 
-func (mi *MenuItem) UpdateSize(widthFactor, heightFactor int) {
-	newWidth := mi.BaseWidth * widthFactor
-	newHeight := mi.BaseHeight * heightFactor
-	newX := mi.BasePosX * widthFactor
-	newY := mi.BasePosY * heightFactor
-	newTextSize := mi.BaseTextSize * float64(heightFactor)
-	if newTextSize*4 > float64(newWidth) {
-		newTextSize = math.Min(newTextSize, float64(newWidth)/4)
+func (mi *MenuItem) UpdateSize(widthFactor, heightFactor float64) {
+	newWidth := int(float64(mi.BaseWidth) * widthFactor)
+	newHeight := int(float64(mi.BaseHeight) * heightFactor)
+	newX := int(float64(mi.BasePosX) * widthFactor)
+	newY := int(float64(mi.BasePosY) * heightFactor)
+	newTextSize := mi.BaseTextSize * heightFactor
+	if newTextSize*float64(len(mi.Name))*3.6/5 > float64(newWidth) {
+		newTextSize = math.Min(newTextSize, 1.4*float64(newWidth)/float64(len(mi.Name)))
 	}
 
 	menuImage := ebiten.NewImageWithOptions(image.Rectangle{

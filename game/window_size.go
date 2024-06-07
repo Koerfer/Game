@@ -7,11 +7,11 @@ type WindowSize struct {
 	CurrentScreenWidth  int
 	CurrentScreenHeight int
 
-	PreviousWidthFactor  int
-	PreviousHeightFactor int
+	PreviousWidthFactor  float64
+	PreviousHeightFactor float64
 
-	CurrentWidthFactor  int
-	CurrentHeightFactor int
+	CurrentWidthFactor  float64
+	CurrentHeightFactor float64
 }
 
 func (ws *WindowSize) Changed() bool {
@@ -26,8 +26,8 @@ func (ws *WindowSize) Changed() bool {
 }
 
 func (ws *WindowSize) CalculateNewFactorAndCheckIfChanged() bool {
-	ws.CurrentWidthFactor = ws.CurrentScreenWidth / 18
-	ws.CurrentHeightFactor = ws.CurrentScreenHeight / 18
+	ws.CurrentWidthFactor = float64(ws.CurrentScreenWidth) / 16
+	ws.CurrentHeightFactor = float64(ws.CurrentScreenHeight) / 16
 
 	if ws.PreviousWidthFactor != ws.CurrentWidthFactor {
 		return true
