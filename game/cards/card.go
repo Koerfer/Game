@@ -1,11 +1,12 @@
 package cards
 
 import (
+	"game/game/helper"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/text/v2"
 	"image"
 	"image/color"
-	"math"
+	"strings"
 )
 
 type Card struct {
@@ -16,38 +17,38 @@ type Card struct {
 	TextColour              color.Color
 	Font                    *text.GoTextFaceSource
 
-	BaseWidth  int
-	BaseHeight int
-	BasePosX   int
-	BasePosY   int
+	BaseWidth  float64
+	BaseHeight float64
+	BasePosX   float64
+	BasePosY   float64
 
-	CurrentWidth  int
-	CurrentHeight int
-	CurrentPosX   int
-	CurrentPosY   int
+	CurrentWidth  float64
+	CurrentHeight float64
+	CurrentPosX   float64
+	CurrentPosY   float64
 
 	BackgroundColour color.Color
 	Colour           color.Color
 	Image            *ebiten.Image
 }
 
-func (c *Card) Init(width, height, x, y int, name, description string, font *text.GoTextFaceSource, nameTextSize, descriptionTextSize float64, textColour, backgroundColour, colour color.Color) {
+func (c *Card) Init(width, height, x, y float64, name, description string, font *text.GoTextFaceSource, nameTextSize, descriptionTextSize float64, textColour, backgroundColour, colour color.Color) {
 	cardImage := ebiten.NewImageWithOptions(image.Rectangle{
-		Min: image.Point{X: x, Y: y},
-		Max: image.Point{X: x + width, Y: y + height},
+		Min: image.Point{X: int(x), Y: int(y)},
+		Max: image.Point{X: int(x + width), Y: int(y + height)},
 	}, &ebiten.NewImageOptions{Unmanaged: false})
 
 	cardImage.Fill(backgroundColour)
-	for i := 0; i <= width+x; i++ {
+	for i := 0; i <= int(width+x); i++ {
 		for n := 0; n <= 5; n++ {
-			cardImage.Set(i, y+n, colour)
-			cardImage.Set(i, y+height-n, colour)
+			cardImage.Set(i, int(y)+n, colour)
+			cardImage.Set(i, int(y+height)-n, colour)
 		}
 	}
-	for i := 0; i <= height+y; i++ {
+	for i := 0; i <= int(height+y); i++ {
 		for n := 0; n <= 5; n++ {
-			cardImage.Set(x+n, i, colour)
-			cardImage.Set(x+width-n, i, colour)
+			cardImage.Set(int(x)+n, i, colour)
+			cardImage.Set(int(x+width)-n, i, colour)
 		}
 	}
 
@@ -56,8 +57,8 @@ func (c *Card) Init(width, height, x, y int, name, description string, font *tex
 	op.PrimaryAlign = text.AlignCenter
 	op.SecondaryAlign = text.AlignCenter
 
-	middleX := float64(width)/2 + float64(x)
-	middleY := float64(height)/2 + float64(y)
+	middleX := width/2 + x
+	middleY := height/2 + y
 	op.GeoM.Translate(middleX, middleY)
 
 	text.Draw(cardImage, name, &text.GoTextFace{
@@ -78,64 +79,95 @@ func (c *Card) Init(width, height, x, y int, name, description string, font *tex
 	c.Colour = colour
 	c.TextColour = textColour
 	c.Name = name
+	c.Description = description
 	c.Font = font
 	c.BaseNameTextSize = nameTextSize
 	c.BaseDescriptionTextSize = descriptionTextSize
 }
 
 func (c *Card) UpdateSize(widthFactor, heightFactor float64) {
-	shift := 12
+	shiftX := 12.0
 	if c.BasePosX == 8 {
-		shift = 6
+		shiftX = 5.0
 	} else if c.BasePosX == 12 {
-		shift = 0
-	}
-	newWidth := int(float64(c.BaseWidth) * widthFactor)
-	newHeight := int(float64(c.BaseHeight) * heightFactor)
-	newX := int(float64(c.BasePosX)*widthFactor) + shift
-	newY := int(float64(c.BasePosY) * heightFactor)
-	newNameTextSize := c.BaseNameTextSize * heightFactor
-	//newDescriptionTextSize := c.BaseDescriptionTextSize * float64(heightFactor)
-	if newNameTextSize*float64(len(c.Name))*3.6/5 > float64(newWidth) {
-		newNameTextSize = math.Min(newNameTextSize, 1.4*float64(newWidth)/float64(len(c.Name)))
+		shiftX = -2.0
 	}
 
+	shiftY := 3.0
+	if c.BasePosY == 8 {
+		shiftY = -2.0
+	}
+
+	newWidth, newHeight, newX, newY := helper.GetNewSizeAndPosition(c.BaseWidth, c.BaseHeight, c.BasePosX, c.BasePosY, widthFactor, heightFactor, shiftX, shiftY)
+	newNameTextSize := helper.GetNewTextSize(c.BaseNameTextSize, heightFactor, newWidth, c.Name)
+
 	cardImage := ebiten.NewImageWithOptions(image.Rectangle{
-		Min: image.Point{X: newX, Y: newY},
-		Max: image.Point{X: newX + newWidth, Y: newY + newHeight},
+		Min: image.Point{X: int(newX), Y: int(newY)},
+		Max: image.Point{X: int(newX + newWidth), Y: int(newY + newHeight)},
 	}, &ebiten.NewImageOptions{Unmanaged: false})
 
 	cardImage.Fill(c.BackgroundColour)
-	for i := 0; i <= newWidth+newX; i++ {
+	for i := 0; i <= int(newWidth+newX); i++ {
 		for n := 0; n <= 5; n++ {
-			cardImage.Set(i, newY+n, c.Colour)
-			cardImage.Set(i, newY+newHeight-n, c.Colour)
+			cardImage.Set(i, int(newY)+n, c.Colour)
+			cardImage.Set(i, int(newY+newHeight)-n, c.Colour)
 		}
 	}
-	for i := 0; i <= newHeight+newY; i++ {
+	for i := 0; i <= int(newHeight+newY); i++ {
 		for n := 0; n <= 5; n++ {
-			cardImage.Set(newX+n, i, c.Colour)
-			cardImage.Set(newX+newWidth-n, i, c.Colour)
+			cardImage.Set(int(newX)+n, i, c.Colour)
+			cardImage.Set(int(newX+newWidth)-n, i, c.Colour)
 		}
 	}
 
-	op := &text.DrawOptions{}
-	op.ColorScale.ScaleWithColor(c.TextColour)
-	op.PrimaryAlign = text.AlignCenter
-	op.SecondaryAlign = text.AlignCenter
-
-	middleX := float64(newWidth)/2 + float64(newX)
-	middleY := float64(newHeight)/2 + float64(newY)
-	op.GeoM.Translate(middleX, middleY)
-
-	text.Draw(cardImage, c.Name, &text.GoTextFace{
-		Source: c.Font,
-		Size:   newNameTextSize,
-	}, op)
+	c.printName(cardImage, newNameTextSize, newWidth, newX, newY)
+	c.printDescription(cardImage, newNameTextSize, heightFactor, newWidth, newX, newY)
 
 	c.CurrentWidth = newWidth
 	c.CurrentHeight = newHeight
 	c.CurrentPosX = newX
 	c.CurrentPosY = newY
 	c.Image = cardImage
+}
+
+func (c *Card) printName(cardImage *ebiten.Image, newNameTextSize, newWidth, newX, newY float64) {
+	op := &text.DrawOptions{}
+	op.ColorScale.ScaleWithColor(c.TextColour)
+	op.PrimaryAlign = text.AlignCenter
+	op.SecondaryAlign = text.AlignCenter
+
+	posX := newWidth/2 + newX
+	posY := newY + newNameTextSize/1.85
+	op.GeoM.Translate(posX, posY)
+
+	text.Draw(cardImage, c.Name, &text.GoTextFace{
+		Source: c.Font,
+		Size:   newNameTextSize,
+	}, op)
+}
+
+func (c *Card) printDescription(cardImage *ebiten.Image, newNameTextSize, heightFactor, newWidth, newX, newY float64) {
+	op := &text.DrawOptions{}
+	op.ColorScale.ScaleWithColor(c.TextColour)
+	op.PrimaryAlign = text.AlignCenter
+	op.SecondaryAlign = text.AlignCenter
+
+	posX := newWidth/2 + newX
+	posY := newY + newNameTextSize*1.4
+	op.GeoM.Translate(posX, posY)
+
+	newDescriptionTextSize := helper.GetNewTextSize(c.BaseDescriptionTextSize, heightFactor, newWidth, c.Description)
+	widthOfText, _ := text.Measure(c.Description, &text.GoTextFace{
+		Source: c.Font,
+		Size:   newDescriptionTextSize,
+	}, 0)
+
+	splitDescription := strings.Split(c.Description, "\n")
+	for _, subDescription := range splitDescription {
+		text.Draw(cardImage, subDescription, &text.GoTextFace{
+			Source: c.Font,
+			Size:   newWidth / widthOfText * newDescriptionTextSize * 0.9,
+		}, op)
+		op.GeoM.Translate(0, newWidth/widthOfText*newDescriptionTextSize)
+	}
 }

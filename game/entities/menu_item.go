@@ -1,24 +1,24 @@
 package entities
 
 import (
+	"game/game/helper"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/text/v2"
 	"image"
 	"image/color"
-	"math"
 )
 
 type MenuItem struct {
-	BaseWidth    int
-	BaseHeight   int
-	BasePosX     int
-	BasePosY     int
+	BaseWidth    float64
+	BaseHeight   float64
+	BasePosX     float64
+	BasePosY     float64
 	BaseTextSize float64
 
-	CurrentWidth  int
-	CurrentHeight int
-	CurrentPosX   int
-	CurrentPosY   int
+	CurrentWidth  float64
+	CurrentHeight float64
+	CurrentPosX   float64
+	CurrentPosY   float64
 
 	Shown bool
 
@@ -31,23 +31,23 @@ type MenuItem struct {
 	ClickFunction    func(int, int)
 }
 
-func (mi *MenuItem) Init(width, height, x, y int, shown bool, name string, font *text.GoTextFaceSource, textSize float64, textColour, backgroundColour, colour color.Color, clickFunction func(int, int)) {
+func (mi *MenuItem) Init(width, height, x, y float64, shown bool, name string, font *text.GoTextFaceSource, textSize float64, textColour, backgroundColour, colour color.Color, clickFunction func(int, int)) {
 	menuImage := ebiten.NewImageWithOptions(image.Rectangle{
-		Min: image.Point{X: x, Y: y},
-		Max: image.Point{X: x + width, Y: y + height},
+		Min: image.Point{X: int(x), Y: int(y)},
+		Max: image.Point{X: int(x + width), Y: int(y + height)},
 	}, &ebiten.NewImageOptions{Unmanaged: false})
 
 	menuImage.Fill(backgroundColour)
-	for i := 0; i <= width+x; i++ {
+	for i := 0; i <= int(width+x); i++ {
 		for n := 0; n <= 5; n++ {
-			menuImage.Set(i, y+n, colour)
-			menuImage.Set(i, y+height-n, colour)
+			menuImage.Set(i, int(y)+n, colour)
+			menuImage.Set(i, int(y+height)-n, colour)
 		}
 	}
-	for i := 0; i <= height+y; i++ {
+	for i := 0; i <= int(height+y); i++ {
 		for n := 0; n <= 5; n++ {
-			menuImage.Set(x+n, i, colour)
-			menuImage.Set(x+width-n, i, colour)
+			menuImage.Set(int(x)+n, i, colour)
+			menuImage.Set(int(x+width)-n, i, colour)
 		}
 	}
 
@@ -56,8 +56,8 @@ func (mi *MenuItem) Init(width, height, x, y int, shown bool, name string, font 
 	op.PrimaryAlign = text.AlignCenter
 	op.SecondaryAlign = text.AlignCenter
 
-	middleX := float64(width)/2 + float64(x)
-	middleY := float64(height)/2 + float64(y)
+	middleX := width/2 + x
+	middleY := height/2 + y
 	op.GeoM.Translate(middleX, middleY)
 
 	text.Draw(menuImage, name, &text.GoTextFace{
@@ -86,31 +86,25 @@ func (mi *MenuItem) Init(width, height, x, y int, shown bool, name string, font 
 }
 
 func (mi *MenuItem) UpdateSize(widthFactor, heightFactor float64) {
-	newWidth := int(float64(mi.BaseWidth) * widthFactor)
-	newHeight := int(float64(mi.BaseHeight) * heightFactor)
-	newX := int(float64(mi.BasePosX) * widthFactor)
-	newY := int(float64(mi.BasePosY) * heightFactor)
-	newTextSize := mi.BaseTextSize * heightFactor
-	if newTextSize*float64(len(mi.Name))*3.6/5 > float64(newWidth) {
-		newTextSize = math.Min(newTextSize, 1.4*float64(newWidth)/float64(len(mi.Name)))
-	}
+	newWidth, newHeight, newX, newY := helper.GetNewSizeAndPosition(mi.BaseWidth, mi.BaseHeight, mi.BasePosX, mi.BasePosY, widthFactor, heightFactor, 0, 0)
+	newTextSize := helper.GetNewTextSize(mi.BaseTextSize, heightFactor, newWidth, mi.Name)
 
 	menuImage := ebiten.NewImageWithOptions(image.Rectangle{
-		Min: image.Point{X: newX, Y: newY},
-		Max: image.Point{X: newX + newWidth, Y: newY + newHeight},
+		Min: image.Point{X: int(newX), Y: int(newY)},
+		Max: image.Point{X: int(newX + newWidth), Y: int(newY + newHeight)},
 	}, &ebiten.NewImageOptions{Unmanaged: false})
 
 	menuImage.Fill(mi.BackgroundColour)
-	for i := 0; i <= newWidth+newX; i++ {
+	for i := 0; i <= int(newWidth+newX); i++ {
 		for n := 0; n <= 5; n++ {
-			menuImage.Set(i, newY+n, mi.Colour)
-			menuImage.Set(i, newY+newHeight-n, mi.Colour)
+			menuImage.Set(i, int(newY)+n, mi.Colour)
+			menuImage.Set(i, int(newY+newHeight)-n, mi.Colour)
 		}
 	}
-	for i := 0; i <= newHeight+newY; i++ {
+	for i := 0; i <= int(newHeight+newY); i++ {
 		for n := 0; n <= 5; n++ {
-			menuImage.Set(newX+n, i, mi.Colour)
-			menuImage.Set(newX+newWidth-n, i, mi.Colour)
+			menuImage.Set(int(newX)+n, i, mi.Colour)
+			menuImage.Set(int(newX+newWidth)-n, i, mi.Colour)
 		}
 	}
 
@@ -119,8 +113,8 @@ func (mi *MenuItem) UpdateSize(widthFactor, heightFactor float64) {
 	op.PrimaryAlign = text.AlignCenter
 	op.SecondaryAlign = text.AlignCenter
 
-	middleX := float64(newWidth)/2 + float64(newX)
-	middleY := float64(newHeight)/2 + float64(newY)
+	middleX := newWidth/2 + newX
+	middleY := newHeight/2 + newY
 	op.GeoM.Translate(middleX, middleY)
 
 	text.Draw(menuImage, mi.Name, &text.GoTextFace{
@@ -140,8 +134,8 @@ func (mi *MenuItem) Click(x, y int) {
 		return
 	}
 
-	if mi.CurrentPosX < x && mi.CurrentPosX+mi.CurrentWidth > x &&
-		mi.CurrentPosY < y && mi.CurrentPosY+mi.CurrentHeight > y {
+	if mi.CurrentPosX < float64(x) && mi.CurrentPosX+mi.CurrentWidth > float64(x) &&
+		mi.CurrentPosY < float64(y) && mi.CurrentPosY+mi.CurrentHeight > float64(y) {
 		mi.ClickFunction(x, y)
 	}
 }

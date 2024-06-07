@@ -71,13 +71,13 @@ func Init() *Game {
 	g.Dividers = append(g.Dividers, menuDivider, menuDividerMiddle, menuDividerRight)
 
 	card := &cards.Card{}
-	card.Init(4, 8, 4, 0, "Test", "Does something \n cool", s, 2, 1, white, black, red)
+	card.Init(4, 8, 4, 0, "Test", "Does something\n cool", s, 2, 1, white, black, red)
 	card2 := &cards.Card{}
-	card2.Init(4, 8, 8, 0, "Test", "Does something \n cool", s, 2, 1, white, black, red)
+	card2.Init(4, 8, 8, 0, "Test", "Does something\n cool", s, 2, 1, white, black, red)
 	card3 := &cards.Card{}
-	card3.Init(4, 8, 12, 0, "Test", "Does something \n cool", s, 2, 1, white, black, red)
+	card3.Init(4, 8, 12, 0, "Test", "Does something\n cool", s, 2, 1, white, black, red)
 	card4 := &cards.Card{}
-	card4.Init(4, 8, 4, 8, "Test", "Does something \n cool", s, 2, 1, white, black, red)
+	card4.Init(4, 8, 4, 8, "Test", "Does something\n cool", s, 2, 1, white, black, red)
 	g.Cards = append(g.Cards, card, card2, card3, card4)
 
 	return g
