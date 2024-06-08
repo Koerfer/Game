@@ -3,10 +3,11 @@ package screen
 type Screen uint8
 
 const (
-	ScreenInvalid Screen = iota
+	ScreenNothing Screen = iota
 	ScreenMain
 	ScreenCards
 	ScreenTech
 	ScreenAnna
 	ScreenSettings
+	ScreenPlay
 )

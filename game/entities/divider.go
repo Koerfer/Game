@@ -9,12 +9,13 @@ import (
 type Divider struct {
 	Vertical bool
 
-	BasePos     int
-	BaseLength  int
-	Width       int
-	Align       Align
-	CurrentPosX int
-	CurrentPosY int
+	BasePos         int
+	baseStartOffset int
+	BaseLength      int
+	Width           int
+	Align           Align
+	CurrentPosX     int
+	CurrentPosY     int
 
 	Shown bool
 
@@ -31,7 +32,7 @@ const (
 	Right
 )
 
-func (d *Divider) Init(vertical bool, position, length, width int, align Align, colour color.Color) {
+func (d *Divider) Init(vertical bool, position, startOffset, length, width int, align Align, colour color.Color) {
 	var leftUp int
 	var rightDown int
 
@@ -47,15 +48,15 @@ func (d *Divider) Init(vertical bool, position, length, width int, align Align, 
 		rightDown = 0
 	}
 
-	xMin := 0
-	xMax := length
+	xMin := startOffset
+	xMax := startOffset + length
 	yMin := position - leftUp
 	yMax := position + rightDown
 	if vertical {
 		xMin = position - leftUp
 		xMax = position + rightDown
-		yMin = 0
-		yMax = length
+		yMin = startOffset
+		yMax = startOffset + length
 	}
 
 	dividerImage := ebiten.NewImageWithOptions(image.Rectangle{
@@ -67,6 +68,7 @@ func (d *Divider) Init(vertical bool, position, length, width int, align Align, 
 
 	d.Vertical = vertical
 	d.BasePos = position
+	d.baseStartOffset = startOffset
 	d.BaseLength = length
 	d.Width = width
 	d.Align = align
@@ -92,15 +94,15 @@ func (d *Divider) UpdateSize(widthFactor, heightFactor float64) {
 		rightDown = 0
 	}
 
-	xMin := 0
-	xMax := int(float64(d.BaseLength) * widthFactor)
+	xMin := int(float64(d.baseStartOffset) * widthFactor)
+	xMax := int(float64(d.BaseLength+d.baseStartOffset) * widthFactor)
 	yMin := int(float64(d.BasePos)*heightFactor - leftUp)
 	yMax := int(float64(d.BasePos)*heightFactor + rightDown)
 	if d.Vertical {
 		xMin = int(float64(d.BasePos)*widthFactor - leftUp)
 		xMax = int(float64(d.BasePos)*widthFactor + rightDown)
-		yMin = 0
-		yMax = int(float64(d.BaseLength) * heightFactor)
+		yMin = int(float64(d.baseStartOffset) * heightFactor)
+		yMax = int(float64(d.BaseLength+d.baseStartOffset) * heightFactor)
 	}
 
 	menuImage := ebiten.NewImageWithOptions(image.Rectangle{

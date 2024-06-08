@@ -1,12 +1,11 @@
 package game
 
 import (
-	"bytes"
-	"game/font"
 	"game/game/cards"
+	"game/game/colours"
+	"game/game/font"
+	"game/game/play"
 	"game/game/screen"
-	"image/color"
-	"log"
 	"time"
 
 	"game/game/entities"
@@ -22,9 +21,13 @@ type Game struct {
 	WindowSize *WindowSize
 
 	PreviousUpdateTime time.Time
-	MenuItems          []*entities.MenuItem
-	Dividers           []*entities.Divider
-	Cards              []*cards.Card
+	MenuItems          []*entities.Button
+	MainDividers       []*entities.Divider
+	PlayDividers       []*entities.Divider
+	Cards              *cards.Cards
+	StartButton        *entities.Button
+
+	PlayState *play.State
 
 	Screen screen.Screen
 }
@@ -33,65 +36,59 @@ func Init() *Game {
 	g := &Game{}
 	ebiten.SetTPS(120)
 	g.PreviousUpdateTime = time.Now()
-	s, err := text.NewGoTextFaceSource(bytes.NewReader(font.MonoBold))
-	if err != nil {
-		log.Fatal(err)
-	}
-	g.font = s
 	screenWidth, screenHeight := ebiten.WindowSize()
 	g.WindowSize = &WindowSize{
 		CurrentScreenWidth:  screenWidth,
 		CurrentScreenHeight: screenHeight,
 	}
 
-	white := color.RGBA{R: 255, G: 255, B: 255, A: 255}
-	grey := color.RGBA{R: 150, G: 150, B: 150, A: 255}
-	darkGrey := color.RGBA{R: 70, G: 70, B: 70, A: 255}
-	black := color.RGBA{R: 0, G: 0, B: 0, A: 255}
-	green := color.RGBA{R: 0, G: 255, B: 0, A: 255}
-	red := color.RGBA{R: 255, G: 0, B: 0, A: 255}
-	blue := color.RGBA{R: 0, G: 0, B: 255, A: 255}
-	pink := color.RGBA{R: 255, G: 150, B: 200, A: 255}
-	menuHeader := &entities.MenuItem{}
-	menuHeader.Init(4, 2, 0, 0, true, "MENU", s, 2 /*text*/, white /*background*/, black /*border*/, white, screen.ScreenMain)
-	menuCards := &entities.MenuItem{}
-	menuCards.Init(4, 2, 0, 2, true, "CARDS", s, 1.5 /*text*/, white /*background*/, black /*border*/, blue, screen.ScreenCards)
-	menuTech := &entities.MenuItem{}
-	menuTech.Init(4, 2, 0, 4, true, "TECH", s, 1.5 /*text*/, white /*background*/, black /*border*/, green, screen.ScreenTech)
-	menuAnna := &entities.MenuItem{}
-	menuAnna.Init(4, 2, 0, 6, true, "ANNA", s, 1.5 /*text*/, pink /*background*/, black /*border*/, pink, screen.ScreenAnna)
-	menuSettings := &entities.MenuItem{}
-	menuSettings.Init(4, 2, 0, 14, true, "SETTINGS", s, 1 /*text*/, grey /*background*/, black /*border*/, grey, screen.ScreenSettings)
+	g.font = font.GetBold()
+
+	menuHeader := &entities.Button{}
+	menuHeader.Init(4, 2, 0, 0, true, "MENU", g.font, 2 /*text*/, colours.White /*background*/, colours.Black /*border*/, colours.White, screen.ScreenMain)
+	menuCards := &entities.Button{}
+	menuCards.Init(4, 2, 0, 2, true, "CARDS", g.font, 1.5 /*text*/, colours.White /*background*/, colours.Black /*border*/, colours.Blue, screen.ScreenCards)
+	menuTech := &entities.Button{}
+	menuTech.Init(4, 2, 0, 4, true, "TECH", g.font, 1.5 /*text*/, colours.White /*background*/, colours.Black /*border*/, colours.Green, screen.ScreenTech)
+	menuAnna := &entities.Button{}
+	menuAnna.Init(4, 2, 0, 6, true, "ANNA", g.font, 1.5 /*text*/, colours.Pink /*background*/, colours.Black /*border*/, colours.Pink, screen.ScreenAnna)
+	menuSettings := &entities.Button{}
+	menuSettings.Init(4, 2, 0, 14, true, "SETTINGS", g.font, 1 /*text*/, colours.Grey /*background*/, colours.Black /*border*/, colours.Grey, screen.ScreenSettings)
 	g.MenuItems = append(g.MenuItems, menuHeader, menuCards, menuTech, menuAnna, menuSettings)
 
-	menuDivider := &entities.Divider{}
-	menuDivider.Init(true, 4, 16, 12, entities.Left, black)
-	menuDividerMiddle := &entities.Divider{}
-	menuDividerMiddle.Init(true, 4, 16, 9, entities.Left, darkGrey)
-	menuDividerRight := &entities.Divider{}
-	menuDividerRight.Init(true, 4, 16, 3, entities.Left, black)
-	g.Dividers = append(g.Dividers, menuDivider, menuDividerMiddle, menuDividerRight)
+	g.StartButton = &entities.Button{}
+	g.StartButton.Init(8, 4, 6, 6, true, "START", g.font, 3 /*text*/, colours.Green /*background*/, colours.DarkGreen /*border*/, colours.Green, screen.ScreenPlay)
 
-	card1 := &cards.Card{}
-	card1.Init(4, 8, 4, 0, "Test", "Does something\ncool", s, 2, 1, white, black, red)
-	card2 := &cards.Card{}
-	card2.Init(4, 8, 8, 0, "Test", "Does something\ncool", s, 2, 1, white, black, red)
-	card3 := &cards.Card{}
-	card3.Init(4, 8, 12, 0, "Test", "Does something\ncool", s, 2, 1, white, black, red)
-	card4 := &cards.Card{}
-	card4.Init(4, 8, 4, 8, "Test", "Does something\ncool", s, 2, 1, white, black, red)
-	card5 := &cards.Card{}
-	card5.Init(4, 8, 8, 8, "Test", "Does something\ncool", s, 2, 1, white, black, red)
-	card6 := &cards.Card{}
-	card6.Init(4, 8, 12, 8, "Test", "Does something\ncool", s, 2, 1, white, black, red)
-	g.Cards = append(g.Cards, card1, card2, card3, card4, card5, card6)
+	menuDivider := &entities.Divider{}
+	menuDivider.Init(true, 4, 0, 16, 12, entities.Left, colours.Black)
+	menuDividerMiddle := &entities.Divider{}
+	menuDividerMiddle.Init(true, 4, 0, 16, 9, entities.Left, colours.DarkGrey)
+	menuDividerRight := &entities.Divider{}
+	menuDividerRight.Init(true, 4, 0, 16, 3, entities.Left, colours.Black)
+	g.MainDividers = append(g.MainDividers, menuDivider, menuDividerMiddle, menuDividerRight)
+
+	waveDivider := &entities.Divider{}
+	waveDivider.Init(true, 8, 0, 4, 5, entities.Left, colours.White)
+	topDivider := &entities.Divider{}
+	topDivider.Init(false, 4, 4, 12, 5, entities.Left, colours.White)
+	g.PlayDividers = append(g.PlayDividers, waveDivider, topDivider)
+
+	cs := &cards.Cards{}
+	cs.Init()
+	g.Cards = cs
+
+	g.Screen = screen.ScreenMain
 
 	return g
 }
 
 func (g *Game) Update() error {
-	//timeDelta := float64(time.Since(g.PreviousUpdateTime).Milliseconds())
+	timeDelta := time.Since(g.PreviousUpdateTime)
 	g.PreviousUpdateTime = time.Now()
+
+	if g.Screen == screen.ScreenPlay {
+		g.PlayState.TimeRemaining -= timeDelta
+	}
 
 	g.touchIDs = ebiten.AppendTouchIDs(g.touchIDs[:0])
 
@@ -100,12 +97,42 @@ func (g *Game) Update() error {
 		for _, menuItem := range g.MenuItems {
 			newScreen := menuItem.Click(x, y)
 			switch newScreen {
-			case screen.ScreenInvalid:
+			case screen.ScreenNothing:
 				continue
 			default:
 				g.Screen = newScreen
 			}
 		}
+
+		switch g.Screen {
+		case screen.ScreenCards:
+			for _, card := range g.Cards.Cards {
+				g.Cards.NumberSelected += card.Click(x, y, g.Cards.NumberSelected)
+			}
+		case screen.ScreenMain:
+			newScreen := g.StartButton.Click(x, y)
+			switch newScreen {
+			case screen.ScreenPlay:
+				g.Screen = newScreen
+				if g.PlayState == nil {
+					g.PlayState = play.Start()
+					g.StartButton.Name = "CONTINUE"
+					g.StartButton.Update()
+				}
+			default:
+				// do nothing
+			}
+
+		case screen.ScreenPlay:
+			// todo
+		default:
+			// do nothing
+		}
+
+	}
+
+	if inpututil.IsKeyJustPressed(ebiten.KeyEscape) {
+		g.Screen = screen.ScreenMain
 	}
 
 	return nil
