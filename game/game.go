@@ -2,9 +2,9 @@ package game
 
 import (
 	"bytes"
-	"fmt"
 	"game/font"
 	"game/game/cards"
+	"game/game/screen"
 	"image/color"
 	"log"
 	"time"
@@ -25,6 +25,8 @@ type Game struct {
 	MenuItems          []*entities.MenuItem
 	Dividers           []*entities.Divider
 	Cards              []*cards.Card
+
+	Screen screen.Screen
 }
 
 func Init() *Game {
@@ -51,15 +53,15 @@ func Init() *Game {
 	blue := color.RGBA{R: 0, G: 0, B: 255, A: 255}
 	pink := color.RGBA{R: 255, G: 150, B: 200, A: 255}
 	menuHeader := &entities.MenuItem{}
-	menuHeader.Init(4, 2, 0, 0, true, "MENU", s, 2 /*text*/, white /*background*/, black /*border*/, white, nil)
+	menuHeader.Init(4, 2, 0, 0, true, "MENU", s, 2 /*text*/, white /*background*/, black /*border*/, white, screen.ScreenMain)
 	menuCards := &entities.MenuItem{}
-	menuCards.Init(4, 2, 0, 2, true, "CARDS", s, 1.5 /*text*/, white /*background*/, black /*border*/, blue, nil)
+	menuCards.Init(4, 2, 0, 2, true, "CARDS", s, 1.5 /*text*/, white /*background*/, black /*border*/, blue, screen.ScreenCards)
 	menuTech := &entities.MenuItem{}
-	menuTech.Init(4, 2, 0, 4, true, "TECH", s, 1.5 /*text*/, white /*background*/, black /*border*/, green, nil)
+	menuTech.Init(4, 2, 0, 4, true, "TECH", s, 1.5 /*text*/, white /*background*/, black /*border*/, green, screen.ScreenTech)
 	menuAnna := &entities.MenuItem{}
-	menuAnna.Init(4, 2, 0, 6, false, "ANNA", s, 1.5 /*text*/, pink /*background*/, black /*border*/, pink, nil)
+	menuAnna.Init(4, 2, 0, 6, true, "ANNA", s, 1.5 /*text*/, pink /*background*/, black /*border*/, pink, screen.ScreenAnna)
 	menuSettings := &entities.MenuItem{}
-	menuSettings.Init(4, 2, 0, 14, true, "SETTINGS", s, 1 /*text*/, grey /*background*/, black /*border*/, grey, nil)
+	menuSettings.Init(4, 2, 0, 14, true, "SETTINGS", s, 1 /*text*/, grey /*background*/, black /*border*/, grey, screen.ScreenSettings)
 	g.MenuItems = append(g.MenuItems, menuHeader, menuCards, menuTech, menuAnna, menuSettings)
 
 	menuDivider := &entities.Divider{}
@@ -70,91 +72,41 @@ func Init() *Game {
 	menuDividerRight.Init(true, 4, 16, 3, entities.Left, black)
 	g.Dividers = append(g.Dividers, menuDivider, menuDividerMiddle, menuDividerRight)
 
-	card := &cards.Card{}
-	card.Init(4, 8, 4, 0, "Test", "Does something\n cool", s, 2, 1, white, black, red)
+	card1 := &cards.Card{}
+	card1.Init(4, 8, 4, 0, "Test", "Does something\ncool", s, 2, 1, white, black, red)
 	card2 := &cards.Card{}
-	card2.Init(4, 8, 8, 0, "Test", "Does something\n cool", s, 2, 1, white, black, red)
+	card2.Init(4, 8, 8, 0, "Test", "Does something\ncool", s, 2, 1, white, black, red)
 	card3 := &cards.Card{}
-	card3.Init(4, 8, 12, 0, "Test", "Does something\n cool", s, 2, 1, white, black, red)
+	card3.Init(4, 8, 12, 0, "Test", "Does something\ncool", s, 2, 1, white, black, red)
 	card4 := &cards.Card{}
-	card4.Init(4, 8, 4, 8, "Test", "Does something\n cool", s, 2, 1, white, black, red)
-	g.Cards = append(g.Cards, card, card2, card3, card4)
+	card4.Init(4, 8, 4, 8, "Test", "Does something\ncool", s, 2, 1, white, black, red)
+	card5 := &cards.Card{}
+	card5.Init(4, 8, 8, 8, "Test", "Does something\ncool", s, 2, 1, white, black, red)
+	card6 := &cards.Card{}
+	card6.Init(4, 8, 12, 8, "Test", "Does something\ncool", s, 2, 1, white, black, red)
+	g.Cards = append(g.Cards, card1, card2, card3, card4, card5, card6)
 
 	return g
 }
 
 func (g *Game) Update() error {
-	timeDelta := float64(time.Since(g.PreviousUpdateTime).Milliseconds())
+	//timeDelta := float64(time.Since(g.PreviousUpdateTime).Milliseconds())
 	g.PreviousUpdateTime = time.Now()
 
 	g.touchIDs = ebiten.AppendTouchIDs(g.touchIDs[:0])
 
 	if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
 		x, y := ebiten.CursorPosition()
-		_ = x + y + int(timeDelta)
-
+		for _, menuItem := range g.MenuItems {
+			newScreen := menuItem.Click(x, y)
+			switch newScreen {
+			case screen.ScreenInvalid:
+				continue
+			default:
+				g.Screen = newScreen
+			}
+		}
 	}
 
 	return nil
-}
-
-func (g *Game) Draw(screen *ebiten.Image) {
-	if g.WindowSize.Changed() {
-		if g.WindowSize.CalculateNewFactorAndCheckIfChanged() {
-			for _, menuItem := range g.MenuItems {
-				menuItem.UpdateSize(g.WindowSize.CurrentWidthFactor, g.WindowSize.CurrentHeightFactor)
-			}
-			for _, card := range g.Cards {
-				card.UpdateSize(g.WindowSize.CurrentWidthFactor, g.WindowSize.CurrentHeightFactor)
-			}
-			for _, divider := range g.Dividers {
-				divider.UpdateSize(g.WindowSize.CurrentWidthFactor, g.WindowSize.CurrentHeightFactor)
-			}
-
-			g.WindowSize.PreviousHeightFactor = g.WindowSize.CurrentHeightFactor
-			g.WindowSize.PreviousWidthFactor = g.WindowSize.CurrentWidthFactor
-		}
-
-		g.WindowSize.PreviousScreenHeight = g.WindowSize.CurrentScreenHeight
-		g.WindowSize.PreviousScreenWidth = g.WindowSize.CurrentScreenWidth
-	}
-
-	for _, divider := range g.Dividers {
-		g.op.GeoM.Reset()
-		g.op.GeoM.Translate(float64(divider.CurrentPosX), float64(divider.CurrentPosY))
-		screen.DrawImage(divider.Image, &ebiten.DrawImageOptions{
-			GeoM: g.op.GeoM,
-		})
-	}
-
-	for _, menuItem := range g.MenuItems {
-		if !menuItem.Shown {
-			continue
-		}
-
-		g.op.GeoM.Reset()
-		g.op.GeoM.Translate(float64(menuItem.CurrentPosX), float64(menuItem.CurrentPosY))
-		screen.DrawImage(menuItem.Image, &ebiten.DrawImageOptions{
-			GeoM: g.op.GeoM,
-		})
-	}
-
-	for _, card := range g.Cards {
-		g.op.GeoM.Reset()
-		g.op.GeoM.Translate(float64(card.CurrentPosX), float64(card.CurrentPosY))
-		screen.DrawImage(card.Image, &ebiten.DrawImageOptions{
-			GeoM: g.op.GeoM,
-		})
-	}
-
-	op := &text.DrawOptions{}
-	op.ColorScale.ScaleWithColor(color.White)
-
-	msg := fmt.Sprintf(`TPS: %0.2f - FPS: %0.2f`, ebiten.ActualTPS(), ebiten.ActualFPS())
-	op.GeoM.Translate(float64(g.WindowSize.PreviousScreenWidth)-170, 0)
-	text.Draw(screen, msg, &text.GoTextFace{
-		Source: g.font,
-		Size:   12,
-	}, op)
-	op.GeoM.Reset()
 }

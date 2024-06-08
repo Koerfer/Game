@@ -58,12 +58,12 @@ func (d *Divider) Init(vertical bool, position, length, width int, align Align, 
 		yMax = length
 	}
 
-	menuImage := ebiten.NewImageWithOptions(image.Rectangle{
+	dividerImage := ebiten.NewImageWithOptions(image.Rectangle{
 		Min: image.Point{X: xMin, Y: yMin},
 		Max: image.Point{X: xMax, Y: yMax},
 	}, &ebiten.NewImageOptions{Unmanaged: false})
 
-	menuImage.Fill(colour)
+	dividerImage.Fill(colour)
 
 	d.Vertical = vertical
 	d.BasePos = position
@@ -73,7 +73,7 @@ func (d *Divider) Init(vertical bool, position, length, width int, align Align, 
 	d.CurrentPosX = xMin
 	d.CurrentPosY = yMin
 	d.Colour = colour
-	d.Image = menuImage
+	d.Image = dividerImage
 }
 
 func (d *Divider) UpdateSize(widthFactor, heightFactor float64) {

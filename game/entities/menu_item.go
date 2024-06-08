@@ -2,6 +2,7 @@ package entities
 
 import (
 	"game/game/helper"
+	"game/game/screen"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/text/v2"
 	"image"
@@ -28,52 +29,28 @@ type MenuItem struct {
 	TextColour       color.Color
 	Name             string
 	Font             *text.GoTextFaceSource
-	ClickFunction    func(int, int)
+
+	Screen screen.Screen
 }
 
-func (mi *MenuItem) Init(width, height, x, y float64, shown bool, name string, font *text.GoTextFaceSource, textSize float64, textColour, backgroundColour, colour color.Color, clickFunction func(int, int)) {
+func (mi *MenuItem) Init(width, height, x, y float64, shown bool, name string, font *text.GoTextFaceSource, textSize float64, textColour, backgroundColour, colour color.Color, screen screen.Screen) {
 	menuImage := ebiten.NewImageWithOptions(image.Rectangle{
 		Min: image.Point{X: int(x), Y: int(y)},
 		Max: image.Point{X: int(x + width), Y: int(y + height)},
 	}, &ebiten.NewImageOptions{Unmanaged: false})
 
-	menuImage.Fill(backgroundColour)
-	for i := 0; i <= int(width+x); i++ {
-		for n := 0; n <= 5; n++ {
-			menuImage.Set(i, int(y)+n, colour)
-			menuImage.Set(i, int(y+height)-n, colour)
-		}
-	}
-	for i := 0; i <= int(height+y); i++ {
-		for n := 0; n <= 5; n++ {
-			menuImage.Set(int(x)+n, i, colour)
-			menuImage.Set(int(x+width)-n, i, colour)
-		}
-	}
-
-	op := &text.DrawOptions{}
-	op.ColorScale.ScaleWithColor(textColour)
-	op.PrimaryAlign = text.AlignCenter
-	op.SecondaryAlign = text.AlignCenter
-
-	middleX := width/2 + x
-	middleY := height/2 + y
-	op.GeoM.Translate(middleX, middleY)
-
-	text.Draw(menuImage, name, &text.GoTextFace{
-		Source: font,
-		Size:   textSize,
-	}, op)
-
 	mi.BaseWidth = width
 	mi.BaseHeight = height
 	mi.BasePosX = x
 	mi.BasePosY = y
+
 	mi.CurrentWidth = width
 	mi.CurrentHeight = height
 	mi.CurrentPosX = x
 	mi.CurrentPosY = y
+
 	mi.Shown = shown
+
 	mi.Image = menuImage
 	mi.BackgroundColour = backgroundColour
 	mi.Colour = colour
@@ -81,8 +58,8 @@ func (mi *MenuItem) Init(width, height, x, y float64, shown bool, name string, f
 	mi.Name = name
 	mi.Font = font
 	mi.BaseTextSize = textSize
-	mi.ClickFunction = clickFunction
 
+	mi.Screen = screen
 }
 
 func (mi *MenuItem) UpdateSize(widthFactor, heightFactor float64) {
@@ -129,13 +106,15 @@ func (mi *MenuItem) UpdateSize(widthFactor, heightFactor float64) {
 	mi.Image = menuImage
 }
 
-func (mi *MenuItem) Click(x, y int) {
+func (mi *MenuItem) Click(x, y int) screen.Screen {
 	if !mi.Shown {
-		return
+		return screen.ScreenInvalid
 	}
 
 	if mi.CurrentPosX < float64(x) && mi.CurrentPosX+mi.CurrentWidth > float64(x) &&
 		mi.CurrentPosY < float64(y) && mi.CurrentPosY+mi.CurrentHeight > float64(y) {
-		mi.ClickFunction(x, y)
+		return mi.Screen
 	}
+
+	return screen.ScreenInvalid
 }

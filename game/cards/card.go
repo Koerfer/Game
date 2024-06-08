@@ -38,34 +38,6 @@ func (c *Card) Init(width, height, x, y float64, name, description string, font 
 		Max: image.Point{X: int(x + width), Y: int(y + height)},
 	}, &ebiten.NewImageOptions{Unmanaged: false})
 
-	cardImage.Fill(backgroundColour)
-	for i := 0; i <= int(width+x); i++ {
-		for n := 0; n <= 5; n++ {
-			cardImage.Set(i, int(y)+n, colour)
-			cardImage.Set(i, int(y+height)-n, colour)
-		}
-	}
-	for i := 0; i <= int(height+y); i++ {
-		for n := 0; n <= 5; n++ {
-			cardImage.Set(int(x)+n, i, colour)
-			cardImage.Set(int(x+width)-n, i, colour)
-		}
-	}
-
-	op := &text.DrawOptions{}
-	op.ColorScale.ScaleWithColor(textColour)
-	op.PrimaryAlign = text.AlignCenter
-	op.SecondaryAlign = text.AlignCenter
-
-	middleX := width/2 + x
-	middleY := height/2 + y
-	op.GeoM.Translate(middleX, middleY)
-
-	text.Draw(cardImage, name, &text.GoTextFace{
-		Source: font,
-		Size:   nameTextSize,
-	}, op)
-
 	c.BaseWidth = width
 	c.BaseHeight = height
 	c.BasePosX = x
@@ -121,7 +93,7 @@ func (c *Card) UpdateSize(widthFactor, heightFactor float64) {
 	}
 
 	c.printName(cardImage, newNameTextSize, newWidth, newX, newY)
-	c.printDescription(cardImage, newNameTextSize, heightFactor, newWidth, newX, newY)
+	c.printDescription(cardImage, newNameTextSize, heightFactor, newWidth, newHeight, newX, newY)
 
 	c.CurrentWidth = newWidth
 	c.CurrentHeight = newHeight
@@ -146,14 +118,14 @@ func (c *Card) printName(cardImage *ebiten.Image, newNameTextSize, newWidth, new
 	}, op)
 }
 
-func (c *Card) printDescription(cardImage *ebiten.Image, newNameTextSize, heightFactor, newWidth, newX, newY float64) {
+func (c *Card) printDescription(cardImage *ebiten.Image, newNameTextSize, heightFactor, newWidth, newHeight, newX, newY float64) {
 	op := &text.DrawOptions{}
 	op.ColorScale.ScaleWithColor(c.TextColour)
 	op.PrimaryAlign = text.AlignCenter
 	op.SecondaryAlign = text.AlignCenter
 
 	posX := newWidth/2 + newX
-	posY := newY + newNameTextSize*1.4
+	posY := newY + newHeight/2 + (newNameTextSize/1.85)/2
 	op.GeoM.Translate(posX, posY)
 
 	newDescriptionTextSize := helper.GetNewTextSize(c.BaseDescriptionTextSize, heightFactor, newWidth, c.Description)
