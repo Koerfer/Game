@@ -1,6 +1,7 @@
 package cards
 
 import (
+	"fmt"
 	"game/game/colours"
 	"game/game/helper"
 	"github.com/hajimehoshi/ebiten/v2"
@@ -10,6 +11,8 @@ import (
 )
 
 type PlayCard struct {
+	Id int
+
 	baseWidth  float64
 	baseHeight float64
 	basePosX   float64
@@ -20,9 +23,18 @@ type PlayCard struct {
 	CurrentPosX   float64
 	CurrentPosY   float64
 
+	Description       string
 	Active            bool
+	ActiveTime        time.Duration
 	ActiveRemaining   time.Duration
+	CoolDown          time.Duration
 	CoolDownRemaining time.Duration
+
+	ActiveSingleTargetDamageBoost float64
+	PassiveDamageBoost            float64
+
+	ActiveMultiTargetBoost  int
+	PassiveMultiTargetBoost int
 
 	PlayImage *ebiten.Image
 }
@@ -34,6 +46,7 @@ func (c *Card) addPlayCard() {
 	}, &ebiten.NewImageOptions{Unmanaged: false})
 
 	c.PlayCard = &PlayCard{
+		Id:                c.Id,
 		baseWidth:         4,
 		baseHeight:        5,
 		basePosX:          0,
@@ -44,16 +57,38 @@ func (c *Card) addPlayCard() {
 	}
 }
 
+func (pc *PlayCard) addEffect(description string, passiveDamageBoost, activeSingleTargetDamageBoost float64,
+	passiveMultiBoost, activeMultiBoost int, activationTime, coolDown time.Duration) {
+
+	if passiveDamageBoost != 1 {
+		pc.Description = fmt.Sprintf(description, int(passiveDamageBoost), int(activeSingleTargetDamageBoost), int(coolDown.Seconds()))
+	} else if passiveMultiBoost != 1 {
+		pc.Description = fmt.Sprintf(description, passiveMultiBoost, activeMultiBoost, int(coolDown.Seconds()))
+	} else {
+		pc.Description = description
+	}
+
+	pc.PassiveDamageBoost = passiveDamageBoost
+	pc.ActiveSingleTargetDamageBoost = activeSingleTargetDamageBoost
+
+	pc.PassiveMultiTargetBoost = passiveMultiBoost
+	pc.ActiveMultiTargetBoost = activeMultiBoost
+
+	pc.ActiveTime = activationTime
+	pc.CoolDown = coolDown
+	pc.CoolDownRemaining = 0
+}
+
 func (c *Card) updatePlayCard(widthFactor, heightFactor float64) {
 	shiftX := 12.0
-	if c.basePosX == 8 {
+	if c.PlayCard.basePosX == 8 {
 		shiftX = 8.0
-	} else if c.basePosX == 12 {
+	} else if c.PlayCard.basePosX == 12 {
 		shiftX = 4.0
 	}
 
 	newWidth, newHeight, newX, newY := helper.GetNewSizeAndPosition(c.PlayCard.baseWidth, c.PlayCard.baseHeight, c.PlayCard.basePosX, c.PlayCard.basePosY, widthFactor, heightFactor, shiftX, 0)
-	newWidth -= 7
+	newWidth -= 8
 	newHeight -= 7
 
 	newNameTextSize := helper.GetNewTextSize(c.BaseNameTextSize, heightFactor, newWidth, c.Name)

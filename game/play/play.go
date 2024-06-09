@@ -22,23 +22,24 @@ type State struct {
 	DamagePerSecond          float64
 	SingleTargetBoost        float64
 
-	ActiveCards []*cards.Card
+	ActiveCards []*cards.PlayCard
 }
 
 func (s *State) Update(timeDelta time.Duration) {
-	s.TimeRemaining -= timeDelta
-
 	if s.TimeRemaining <= 0 {
 		s.Playing = false
+		s.TimeRemaining = 0
 		return
 	}
+
+	s.TimeRemaining -= timeDelta
 
 	for i, activeCard := range s.ActiveCards {
 		if activeCard == nil {
 			continue
 		}
 
-		if activeCard.PlayCard.ActiveRemaining <= 0 {
+		if activeCard.ActiveRemaining <= 0 {
 			s.deactivateCard(activeCard)
 			s.ActiveCards[i] = nil
 		}

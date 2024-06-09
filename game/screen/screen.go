@@ -10,4 +10,5 @@ const (
 	ScreenAnna
 	ScreenSettings
 	ScreenPlay
+	ScreenSave
 )

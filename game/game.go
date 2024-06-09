@@ -37,6 +37,79 @@ func Init() *Game {
 	g := &Game{}
 	ebiten.SetTPS(120)
 	g.PreviousUpdateTime = time.Now()
+
+	saveState := g.Load()
+	g.newInit()
+
+	if saveState == nil {
+		return g
+	}
+
+	g.WindowSize = saveState.WindowSize
+	g.Screen = saveState.Screen
+
+	for _, card := range g.Cards.Cards {
+		for _, saveCard := range saveState.Cards {
+			if card.Id != saveCard.Id {
+				continue
+			}
+
+			card.State = saveCard.State
+			card.PlayCard.Active = saveCard.PlayCard.Active
+			card.PlayCard.ActiveTime = saveCard.PlayCard.ActiveTime
+			card.PlayCard.ActiveRemaining = saveCard.PlayCard.ActiveRemaining
+			card.PlayCard.CoolDown = saveCard.PlayCard.CoolDown
+			card.PlayCard.CoolDownRemaining = saveCard.PlayCard.CoolDownRemaining
+			card.PlayCard.ActiveSingleTargetDamageBoost = saveCard.PlayCard.ActiveSingleTargetDamageBoost
+			card.PlayCard.PassiveDamageBoost = saveCard.PlayCard.PassiveDamageBoost
+			card.PlayCard.ActiveMultiTargetBoost = saveCard.PlayCard.ActiveMultiTargetBoost
+			card.PlayCard.PassiveMultiTargetBoost = saveCard.PlayCard.PassiveMultiTargetBoost
+			card.Update(g.WindowSize.CurrentWidthFactor, g.WindowSize.CurrentHeightFactor)
+
+			if card.State == cards.StateSelected {
+				card.AddToHand(saveCard.Number+1, g.WindowSize.CurrentWidthFactor, g.WindowSize.CurrentHeightFactor)
+				g.Cards.Selected[saveCard.Number] = card.PlayCard
+			}
+		}
+	}
+
+	if saveState.PlayState != nil {
+		g.PlayState = &play.State{}
+		g.PlayState.Wave = saveState.PlayState.Wave
+		g.PlayState.TimeRemaining = saveState.PlayState.TimeRemaining
+		g.PlayState.Playing = saveState.PlayState.Playing
+		g.PlayState.NumberOfMonsters = saveState.PlayState.NumberOfMonsters
+		g.PlayState.NumberOfMonstersExact = saveState.PlayState.NumberOfMonstersExact
+		g.PlayState.HPPerMonster = saveState.PlayState.HPPerMonster
+		g.PlayState.MonstersKilled = saveState.PlayState.MonstersKilled
+		g.PlayState.MonstersRemaining = saveState.PlayState.MonstersRemaining
+		g.PlayState.MonsterHealth = saveState.PlayState.MonsterHealth
+		g.PlayState.NumberOfMonstersAttacked = saveState.PlayState.NumberOfMonstersAttacked
+		g.PlayState.DamagePerSecond = saveState.PlayState.DamagePerSecond
+		g.PlayState.SingleTargetBoost = saveState.PlayState.SingleTargetBoost
+	}
+
+	for _, menuItem := range g.MenuItems {
+		menuItem.UpdateSize(g.WindowSize.CurrentWidthFactor, g.WindowSize.CurrentHeightFactor)
+	}
+	for _, card := range g.Cards.Cards {
+		card.Update(g.WindowSize.CurrentWidthFactor, g.WindowSize.CurrentHeightFactor)
+	}
+	for _, divider := range g.MainDividers {
+		divider.UpdateSize(g.WindowSize.CurrentWidthFactor, g.WindowSize.CurrentHeightFactor)
+	}
+	for _, divider := range g.PlayDividers {
+		divider.UpdateSize(g.WindowSize.CurrentWidthFactor, g.WindowSize.CurrentHeightFactor)
+	}
+	g.StartButton.UpdateSize(g.WindowSize.CurrentWidthFactor, g.WindowSize.CurrentHeightFactor)
+
+	g.WindowSize.PreviousHeightFactor = g.WindowSize.CurrentHeightFactor
+	g.WindowSize.PreviousWidthFactor = g.WindowSize.CurrentWidthFactor
+
+	return g
+}
+
+func (g *Game) newInit() {
 	screenWidth, screenHeight := ebiten.WindowSize()
 	g.WindowSize = &WindowSize{
 		CurrentScreenWidth:  screenWidth,
@@ -57,9 +130,12 @@ func Init() *Game {
 	menuTech.Init(4, 2, 0, 6, true, "TECH", g.font, 1.5 /*text*/, colours.White /*background*/, colours.Black /*border*/, colours.Red, screen.ScreenTech)
 	menuAnna := &entities.Button{}
 	menuAnna.Init(4, 2, 0, 8, true, "ANNA", g.font, 1.5 /*text*/, colours.Pink /*background*/, colours.Black /*border*/, colours.Pink, screen.ScreenAnna)
+
+	menuSave := &entities.Button{}
+	menuSave.Init(4, 2, 0, 12, true, "SAVE", g.font, 1 /*text*/, colours.Green /*background*/, colours.DarkGreen /*border*/, colours.Green, screen.ScreenSave)
 	menuSettings := &entities.Button{}
 	menuSettings.Init(4, 2, 0, 14, true, "SETTINGS", g.font, 1 /*text*/, colours.Grey /*background*/, colours.Black /*border*/, colours.Grey, screen.ScreenSettings)
-	g.MenuItems = append(g.MenuItems, menuHeader, menuPlay, menuCards, menuTech, menuAnna, menuSettings)
+	g.MenuItems = append(g.MenuItems, menuHeader, menuPlay, menuCards, menuTech, menuAnna, menuSave, menuSettings)
 
 	g.StartButton = &entities.Button{}
 	g.StartButton.Init(8, 4, 6, 6, true, "START", g.font, 3 /*text*/, colours.Green /*background*/, colours.DarkGreen /*border*/, colours.Green, screen.ScreenPlay)
@@ -83,8 +159,6 @@ func Init() *Game {
 	g.Cards = cs
 
 	g.Screen = screen.ScreenNothing
-
-	return g
 }
 
 func (g *Game) Update() error {
@@ -96,16 +170,16 @@ func (g *Game) Update() error {
 			if selectedCard == nil {
 				continue
 			}
-			if selectedCard.PlayCard.Active {
-				selectedCard.PlayCard.ActiveRemaining -= timeDelta
-				g.Timers[i] = selectedCard.PlayCard.TimerImage(selectedCard.PlayCard.ActiveRemaining, selectedCard.ActivationTime, true, g.WindowSize.CurrentHeightFactor)
+			if selectedCard.Active {
+				selectedCard.ActiveRemaining -= timeDelta
+				g.Timers[i] = selectedCard.TimerImage(selectedCard.ActiveRemaining, selectedCard.ActiveTime, true, g.WindowSize.CurrentHeightFactor)
 				continue
 			}
-			if selectedCard.PlayCard.CoolDownRemaining > 0 {
-				selectedCard.PlayCard.CoolDownRemaining -= timeDelta
-				g.Timers[i] = selectedCard.PlayCard.TimerImage(selectedCard.PlayCard.CoolDownRemaining, selectedCard.CoolDown, false, g.WindowSize.CurrentHeightFactor)
-				if selectedCard.PlayCard.CoolDownRemaining <= 0 {
-					selectedCard.PlayCard.CoolDownRemaining = 0
+			if selectedCard.CoolDownRemaining > 0 {
+				selectedCard.CoolDownRemaining -= timeDelta
+				g.Timers[i] = selectedCard.TimerImage(selectedCard.CoolDownRemaining, selectedCard.CoolDown, false, g.WindowSize.CurrentHeightFactor)
+				if selectedCard.CoolDownRemaining <= 0 {
+					selectedCard.CoolDownRemaining = 0
 					g.Timers[i] = nil
 				}
 			}
@@ -122,6 +196,9 @@ func (g *Game) Update() error {
 			newScreen := menuItem.Click(x, y)
 			switch newScreen {
 			case screen.ScreenNothing:
+				continue
+			case screen.ScreenSave:
+				g.Save()
 				continue
 			default:
 				g.Screen = newScreen
@@ -140,13 +217,16 @@ func (g *Game) Update() error {
 					for i, selectedCard := range g.Cards.Selected {
 						if selectedCard == nil {
 							card.AddToHand(i+1, g.WindowSize.CurrentWidthFactor, g.WindowSize.CurrentHeightFactor)
-							g.Cards.Selected[i] = card
+							g.Cards.Selected[i] = card.PlayCard
 							break
 						}
 					}
 				case -1:
 					for i, selectedCard := range g.Cards.Selected {
-						if selectedCard != nil {
+						if selectedCard == nil {
+							continue
+						}
+						if card.Id == selectedCard.Id {
 							g.Cards.Selected[i] = nil
 							break
 						}
@@ -172,16 +252,19 @@ func (g *Game) Update() error {
 
 		case screen.ScreenPlay:
 			for i, selectedCard := range g.Cards.Selected {
+				if !g.PlayState.Playing {
+					continue
+				}
 				if selectedCard == nil {
 					continue
 				}
-				if selectedCard.PlayCard.Active {
+				if selectedCard.Active {
 					continue
 				}
-				if selectedCard.PlayCard.CoolDownRemaining > 0 {
+				if selectedCard.CoolDownRemaining > 0 {
 					continue
 				}
-				if selectedCard.PlayCard.Click(x, y) {
+				if selectedCard.Click(x, y) {
 					g.PlayState.CardActivation(selectedCard, i)
 				}
 			}

@@ -124,13 +124,13 @@ func (c *Card) printNamePlay(cardImage *ebiten.Image, newNameTextSize, newWidth,
 }
 
 func (c *Card) printDescription(cardImage *ebiten.Image, heightFactor, newWidth, newHeight, newX, newY float64, textColour color.Color) {
-	newDescriptionTextSize := helper.GetNewTextSize(c.BaseDescriptionTextSize, heightFactor, newWidth, c.Description)
-	widthOfText, _ := text.Measure(c.Description, &text.GoTextFace{
+	newDescriptionTextSize := helper.GetNewTextSize(c.BaseDescriptionTextSize, heightFactor, newWidth, c.PlayCard.Description)
+	widthOfText, _ := text.Measure(c.PlayCard.Description, &text.GoTextFace{
 		Source: c.Font,
 		Size:   newDescriptionTextSize,
 	}, 0)
 
-	splitDescription := strings.Split(c.Description, "\n")
+	splitDescription := strings.Split(c.PlayCard.Description, "\n")
 
 	op := &text.DrawOptions{}
 	op.ColorScale.ScaleWithColor(textColour)

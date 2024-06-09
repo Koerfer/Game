@@ -8,31 +8,37 @@ import (
 
 type Cards struct {
 	Cards          []*Card
-	Selected       []*Card
+	Selected       []*PlayCard
 	NumberSelected int
 }
 
 func (cs *Cards) Init() {
 	boldFont := font.GetBold()
 	card1 := &Card{}
-	card1.Init(4, 0, "Damage", boldFont, 2, 1, colours.White, colours.Black, colours.Blue)
+	card1.Init(1, 4, 0, "Damage", boldFont, 2, 1, colours.White, colours.Black, colours.Blue)
 	card2 := &Card{}
-	card2.Init(8, 0, "Multi Target", boldFont, 2, 1, colours.White, colours.Black, colours.Blue)
+	card2.Init(2, 8, 0, "Multi Target", boldFont, 2, 1, colours.White, colours.Black, colours.Blue)
 	card3 := &Card{}
-	card3.Init(12, 0, "Chronos", boldFont, 2, 1, colours.White, colours.Black, colours.Blue)
+	card3.Init(3, 12, 0, "Chronos", boldFont, 2, 1, colours.White, colours.Black, colours.Blue)
 	card4 := &Card{}
-	card4.Init(4, 8, "Cutie", boldFont, 2, 1, colours.White, colours.Black, colours.Blue)
+	card4.Init(4, 4, 8, "Cutie", boldFont, 2, 1, colours.White, colours.Black, colours.Blue)
 	card5 := &Card{}
-	card5.Init(8, 8, "Test", boldFont, 2, 1, colours.White, colours.Black, colours.Blue)
+	card5.Init(5, 8, 8, "Test", boldFont, 2, 1, colours.White, colours.Black, colours.Blue)
 	card6 := &Card{}
-	card6.Init(12, 8, "Test", boldFont, 2, 1, colours.White, colours.Black, colours.Blue)
+	card6.Init(6, 12, 8, "Test", boldFont, 2, 1, colours.White, colours.Black, colours.Blue)
 
-	card1.addEffect("Passive: Increases damage by %dx\nActive: 10s of %dx single\ntarget damage\nCooldown: %02d s", 2, 5, 10*time.Second, 30*time.Second)
-	card2.addEffect("Hello cool girl", 1, 1, 10*time.Second, 30*time.Second)
-	card3.addEffect("Testing TESTING TeStInG", 1, 1, 10*time.Second, 30*time.Second)
-	card4.addEffect("Anna Cutie is the\nBEST", 1, 1, 10*time.Second, 30*time.Second)
-	card5.addEffect("I should really go to sleep", 1, 1, 10*time.Second, 30*time.Second)
-	card6.addEffect("Game is getting there", 1, 1, 10*time.Second, 30*time.Second)
+	card1.PlayCard.addEffect("Passive: Increases damage by %dx\nActive: 10s of %dx single\ntarget damage\nCooldown: %02d s", 2, 5,
+		1, 1, 10*time.Second, 30*time.Second)
+	card2.PlayCard.addEffect("Passive: Increases number of\ntargets by %dx\nActive: Increases number of\ntargets by a further %dx\nfor 5s\nCooldown: %02d s", 1, 1,
+		2, 3, 5*time.Second, 30*time.Second)
+	card3.PlayCard.addEffect("Testing TESTING TeStInG", 1, 1,
+		1, 1, 10*time.Second, 30*time.Second)
+	card4.PlayCard.addEffect("Anna Cutie is the\nBEST", 1, 1,
+		1, 1, 10*time.Second, 30*time.Second)
+	card5.PlayCard.addEffect("I should really go to sleep", 1, 1,
+		1, 1, 10*time.Second, 30*time.Second)
+	card6.PlayCard.addEffect("Game is getting there", 1, 1,
+		1, 1, 10*time.Second, 30*time.Second)
 	cs.Cards = append(cs.Cards, card1, card2, card3, card4, card5, card6)
-	cs.Selected = make([]*Card, 3)
+	cs.Selected = make([]*PlayCard, 3)
 }

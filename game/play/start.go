@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-func Start(selectedCards []*cards.Card) *State {
+func Start(selectedCards []*cards.PlayCard) *State {
 	initialState := &State{
 		Wave:                     1,
 		TimeRemaining:            1 * time.Minute,
@@ -17,7 +17,7 @@ func Start(selectedCards []*cards.Card) *State {
 		MonsterHealth:            []float64{2},
 		DamagePerSecond:          5, // 0.2
 		NumberOfMonstersAttacked: 2, // 1
-		ActiveCards:              make([]*cards.Card, 3),
+		ActiveCards:              make([]*cards.PlayCard, 3),
 		SingleTargetBoost:        1,
 	}
 
@@ -27,6 +27,7 @@ func Start(selectedCards []*cards.Card) *State {
 		}
 
 		initialState.DamagePerSecond *= selectedCard.PassiveDamageBoost
+		initialState.NumberOfMonstersAttacked *= selectedCard.PassiveMultiTargetBoost
 	}
 
 	return initialState

@@ -178,12 +178,12 @@ func (g *Game) DrawPlay(screen *ebiten.Image) {
 	}, op)
 
 	for _, card := range g.Cards.Selected {
-		if card == nil || card.PlayCard == nil {
+		if card == nil {
 			continue
 		}
 		g.op.GeoM.Reset()
-		g.op.GeoM.Translate(card.PlayCard.CurrentPosX, card.PlayCard.CurrentPosY)
-		screen.DrawImage(card.PlayCard.PlayImage, &ebiten.DrawImageOptions{
+		g.op.GeoM.Translate(card.CurrentPosX, card.CurrentPosY)
+		screen.DrawImage(card.PlayImage, &ebiten.DrawImageOptions{
 			GeoM: g.op.GeoM,
 		})
 	}

@@ -1,17 +1,16 @@
 package cards
 
 import (
-	"fmt"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/text/v2"
 	"image"
 	"image/color"
-	"time"
 )
 
 type Card struct {
+	Id int
+
 	Name                    string
-	Description             string
 	BaseNameTextSize        float64
 	BaseDescriptionTextSize float64
 	TextColour              color.Color
@@ -33,11 +32,7 @@ type Card struct {
 	UnlockedImage    *ebiten.Image
 	LockedImage      *ebiten.Image
 
-	ActiveSingleTargetDamageBoost float64
-	PassiveDamageBoost            float64
-	ActivationTime                time.Duration
-	CoolDown                      time.Duration
-	PlayCard                      *PlayCard
+	PlayCard *PlayCard
 
 	State State
 }
@@ -50,13 +45,16 @@ const (
 	StateSelected
 )
 
-func (c *Card) Init(x, y float64, name string, font *text.GoTextFaceSource, nameTextSize, descriptionTextSize float64, textColour, backgroundColour, colour color.Color) {
+func (c *Card) Init(id int, x, y float64, name string, font *text.GoTextFaceSource, nameTextSize, descriptionTextSize float64,
+	textColour, backgroundColour, colour color.Color) {
 	whiteImage.Fill(color.White)
 
 	cardImage := ebiten.NewImageWithOptions(image.Rectangle{
 		Min: image.Point{X: int(x), Y: int(y)},
 		Max: image.Point{X: int(x + 4), Y: int(y + 8)},
 	}, &ebiten.NewImageOptions{Unmanaged: false})
+
+	c.Id = id
 
 	c.baseWidth = 4
 	c.baseHeight = 8
@@ -80,20 +78,6 @@ func (c *Card) Init(x, y float64, name string, font *text.GoTextFaceSource, name
 	c.State = StateUnlocked
 
 	c.addPlayCard()
-}
-
-func (c *Card) addEffect(description string, damageBoost, singleTargetDamageBoost float64, activationTime, coolDown time.Duration) {
-	if damageBoost != 1 {
-		c.Description = fmt.Sprintf(description, int(damageBoost), int(singleTargetDamageBoost), int(coolDown.Seconds()))
-	} else {
-		c.Description = description
-	}
-
-	c.PassiveDamageBoost = damageBoost
-	c.ActiveSingleTargetDamageBoost = singleTargetDamageBoost
-	c.ActivationTime = activationTime
-	c.CoolDown = coolDown
-	c.PlayCard.CoolDownRemaining = 0
 }
 
 func (c *Card) Click(x, y, numberSelected int) int {
