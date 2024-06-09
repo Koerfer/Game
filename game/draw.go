@@ -7,6 +7,7 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/text/v2"
 	"image/color"
+	"math"
 )
 
 func (g *Game) Draw(screen *ebiten.Image) {
@@ -109,7 +110,7 @@ func (g *Game) DrawMain(screen *ebiten.Image) {
 }
 
 func (g *Game) DrawPlay(screen *ebiten.Image) {
-	timeRemainingText := fmt.Sprintf(`Time: %02d:%02d`, int(g.PlayState.TimeRemaining.Minutes()), int(g.PlayState.TimeRemaining.Seconds())%60)
+	timeRemainingText := fmt.Sprintf(`Time: %02d:%02d`, int(math.Max(g.PlayState.TimeRemaining.Minutes(), 0)), int(math.Max(g.PlayState.TimeRemaining.Seconds(), 0))%60)
 	waveText := fmt.Sprintf(`Wave: %d`, g.PlayState.Wave)
 	numberMonstersText := fmt.Sprintf(`#Monsters: %d`, g.PlayState.NumberOfMonsters)
 	hpPerMonsterText := fmt.Sprintf(`HP Per Monster: %d`, int(g.PlayState.HPPerMonster))
@@ -119,13 +120,14 @@ func (g *Game) DrawPlay(screen *ebiten.Image) {
 	numberMonstersRemainingText := fmt.Sprintf(`Monsters Remaining: %d`, g.PlayState.MonstersRemaining)
 	monstersAttackedText := fmt.Sprintf(`Monsters Attacked: %d`, g.PlayState.NumberOfMonstersAttacked)
 	damagePerSecondSingleText := fmt.Sprintf(`Single Damage Per Second: %d`, int(g.PlayState.DamagePerSecond*g.PlayState.SingleTargetBoost))
-	if g.PlayState.HPPerMonster < 100 {
+	if g.PlayState.DamagePerSecond*g.PlayState.SingleTargetBoost < 100 {
 		damagePerSecondSingleText = fmt.Sprintf(`Single Damage Per Second: %.1f`, g.PlayState.DamagePerSecond*g.PlayState.SingleTargetBoost)
 	}
 	damagePerSecondMultiText := fmt.Sprintf(`Multi Damage Per Second: %d`, int(g.PlayState.DamagePerSecond))
-	if g.PlayState.HPPerMonster < 100 {
+	if g.PlayState.DamagePerSecond < 100 {
 		damagePerSecondMultiText = fmt.Sprintf(`Multi Damage Per Second: %.1f`, g.PlayState.DamagePerSecond)
 	}
+	cardUpgradesText := fmt.Sprintf(`Card Upgrades Available: %d`, g.Cards.Upgrades)
 
 	op := &text.DrawOptions{}
 	op.ColorScale.ScaleWithColor(color.White)
@@ -153,29 +155,37 @@ func (g *Game) DrawPlay(screen *ebiten.Image) {
 		Size:   g.WindowSize.CurrentHeightFactor * 1,
 	}, op)
 
-	op.GeoM.Translate(-4*g.WindowSize.CurrentWidthFactor, g.WindowSize.CurrentHeightFactor*2.5)
-	text.Draw(screen, numberMonstersRemainingText, &text.GoTextFace{
-		Source: g.font,
-		Size:   g.WindowSize.CurrentHeightFactor * 1,
-	}, op)
+	if g.PlayState.Playing {
+		op.GeoM.Translate(-4*g.WindowSize.CurrentWidthFactor, g.WindowSize.CurrentHeightFactor*2.5)
+		text.Draw(screen, numberMonstersRemainingText, &text.GoTextFace{
+			Source: g.font,
+			Size:   g.WindowSize.CurrentHeightFactor * 1,
+		}, op)
 
-	op.GeoM.Translate(0, g.WindowSize.CurrentHeightFactor*1.1)
-	text.Draw(screen, monstersAttackedText, &text.GoTextFace{
-		Source: g.font,
-		Size:   g.WindowSize.CurrentHeightFactor * 1,
-	}, op)
+		op.GeoM.Translate(0, g.WindowSize.CurrentHeightFactor*1.1)
+		text.Draw(screen, monstersAttackedText, &text.GoTextFace{
+			Source: g.font,
+			Size:   g.WindowSize.CurrentHeightFactor * 1,
+		}, op)
 
-	op.GeoM.Translate(0, g.WindowSize.CurrentHeightFactor*1.1)
-	text.Draw(screen, damagePerSecondMultiText, &text.GoTextFace{
-		Source: g.font,
-		Size:   g.WindowSize.CurrentHeightFactor * 1,
-	}, op)
+		op.GeoM.Translate(0, g.WindowSize.CurrentHeightFactor*1.1)
+		text.Draw(screen, damagePerSecondMultiText, &text.GoTextFace{
+			Source: g.font,
+			Size:   g.WindowSize.CurrentHeightFactor * 1,
+		}, op)
 
-	op.GeoM.Translate(0, g.WindowSize.CurrentHeightFactor*1.1)
-	text.Draw(screen, damagePerSecondSingleText, &text.GoTextFace{
-		Source: g.font,
-		Size:   g.WindowSize.CurrentHeightFactor * 1,
-	}, op)
+		op.GeoM.Translate(0, g.WindowSize.CurrentHeightFactor*1.1)
+		text.Draw(screen, damagePerSecondSingleText, &text.GoTextFace{
+			Source: g.font,
+			Size:   g.WindowSize.CurrentHeightFactor * 1,
+		}, op)
+	} else {
+		op.GeoM.Translate(-4*g.WindowSize.CurrentWidthFactor, g.WindowSize.CurrentHeightFactor*2.5)
+		text.Draw(screen, cardUpgradesText, &text.GoTextFace{
+			Source: g.font,
+			Size:   g.WindowSize.CurrentHeightFactor * 1,
+		}, op)
+	}
 
 	for _, card := range g.Cards.Selected {
 		if card == nil {

@@ -24,6 +24,7 @@ type PlayCard struct {
 	CurrentPosY   float64
 
 	Description       string
+	BaseDescription   string
 	Active            bool
 	ActiveTime        time.Duration
 	ActiveRemaining   time.Duration
@@ -59,6 +60,7 @@ func (c *Card) addPlayCard() {
 
 func (pc *PlayCard) addEffect(description string, passiveDamageBoost, activeSingleTargetDamageBoost float64,
 	passiveMultiBoost, activeMultiBoost int, activationTime, coolDown time.Duration) {
+	pc.BaseDescription = description
 
 	if passiveDamageBoost != 1 {
 		pc.Description = fmt.Sprintf(description, int(passiveDamageBoost), int(activeSingleTargetDamageBoost), int(coolDown.Seconds()))
@@ -80,6 +82,12 @@ func (pc *PlayCard) addEffect(description string, passiveDamageBoost, activeSing
 }
 
 func (c *Card) updatePlayCard(widthFactor, heightFactor float64) {
+	if c.PlayCard.PassiveDamageBoost != 1 {
+		c.PlayCard.Description = fmt.Sprintf(c.PlayCard.BaseDescription, int(c.PlayCard.PassiveDamageBoost), int(c.PlayCard.ActiveSingleTargetDamageBoost), int(c.PlayCard.CoolDown.Seconds()))
+	} else if c.PlayCard.PassiveMultiTargetBoost != 1 {
+		c.PlayCard.Description = fmt.Sprintf(c.PlayCard.BaseDescription, c.PlayCard.PassiveMultiTargetBoost, c.PlayCard.ActiveMultiTargetBoost, int(c.PlayCard.CoolDown.Seconds()))
+	}
+
 	shiftX := 12.0
 	if c.PlayCard.basePosX == 8 {
 		shiftX = 8.0

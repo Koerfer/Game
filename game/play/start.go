@@ -13,6 +13,7 @@ func Start(selectedCards []*cards.PlayCard) *State {
 		Playing:                  true,
 		NumberOfMonstersExact:    1,
 		HPPerMonster:             2,
+		HPPerMonsterCopy:         2,
 		MonstersRemaining:        1,
 		MonsterHealth:            []float64{2},
 		DamagePerSecond:          5, // 0.2

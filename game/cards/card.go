@@ -75,7 +75,7 @@ func (c *Card) Init(id int, x, y float64, name string, font *text.GoTextFaceSour
 	c.BaseNameTextSize = nameTextSize
 	c.BaseDescriptionTextSize = descriptionTextSize
 
-	c.State = StateUnlocked
+	c.State = StateLocked
 
 	c.addPlayCard()
 }
@@ -99,4 +99,34 @@ func (c *Card) Click(x, y, numberSelected int) int {
 	}
 
 	return 0
+}
+
+func (c *Card) Upgrade(x, y, upgrades int) bool {
+	if c.CurrentPosX < float64(x) && c.CurrentPosX+c.currentWidth > float64(x) &&
+		c.CurrentPosY < float64(y) && c.CurrentPosY+c.currentHeight > float64(y) {
+		switch c.State {
+		case StateLocked:
+			return false
+		default:
+			if upgrades == 0 {
+				return false
+			}
+			if c.PlayCard.ActiveMultiTargetBoost != 1 {
+				c.PlayCard.ActiveMultiTargetBoost *= 2
+			}
+			if c.PlayCard.PassiveMultiTargetBoost != 1 {
+				c.PlayCard.PassiveMultiTargetBoost *= 2
+			}
+			if c.PlayCard.ActiveSingleTargetDamageBoost != 1 {
+				c.PlayCard.ActiveSingleTargetDamageBoost *= 2
+			}
+			if c.PlayCard.PassiveDamageBoost != 1 {
+				c.PlayCard.PassiveDamageBoost *= 2
+			}
+
+			return true
+		}
+	}
+
+	return false
 }

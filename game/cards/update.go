@@ -38,6 +38,7 @@ func (c *Card) Update(widthFactor, heightFactor float64) {
 	newHeight -= 7
 	newNameTextSize := helper.GetNewTextSize(c.BaseNameTextSize, heightFactor, newWidth, c.Name)
 
+	c.updatePlayCard(widthFactor, heightFactor)
 	c.currentWidth = newWidth
 	c.currentHeight = newHeight
 	c.CurrentPosX = newX
@@ -45,8 +46,6 @@ func (c *Card) Update(widthFactor, heightFactor float64) {
 	c.LockedImage = c.createImage(newX, newY, newWidth, newHeight, newNameTextSize, heightFactor, StateLocked)
 	c.UnlockedImage = c.createImage(newX, newY, newWidth, newHeight, newNameTextSize, heightFactor, StateUnlocked)
 	c.SelectedImage = c.createImage(newX, newY, newWidth, newHeight, newNameTextSize, heightFactor, StateSelected)
-
-	c.updatePlayCard(widthFactor, heightFactor)
 }
 
 func (c *Card) createImage(newX, newY, newWidth, newHeight, newNameTextSize, heightFactor float64, state State) *ebiten.Image {

@@ -3,6 +3,7 @@ package game
 import (
 	"encoding/gob"
 	"game/game/cards"
+	"game/game/play"
 	"game/game/screen"
 	"log"
 	"os"
@@ -10,10 +11,15 @@ import (
 )
 
 type SaveState struct {
-	Cards      []*CardSaveState
-	WindowSize *WindowSize
-	PlayState  *PlayState
-	Screen     screen.Screen
+	Cards           []*CardSaveState
+	MenuItemShown   map[int]bool
+	WindowSize      *WindowSize
+	PlayState       *PlayState
+	Screen          screen.Screen
+	StartButtonName string
+	HighestWave     int
+	Upgrades        int
+	NumberSelected  int
 }
 
 type CardSaveState struct {
@@ -45,6 +51,7 @@ type PlayState struct {
 	NumberOfMonsters      int
 	NumberOfMonstersExact float64
 	HPPerMonster          float64
+	HPPerMonsterCopy      float64
 
 	MonstersKilled    int
 	MonstersRemaining int
@@ -131,6 +138,7 @@ func (g *Game) Save() {
 			NumberOfMonsters:         g.PlayState.NumberOfMonsters,
 			NumberOfMonstersExact:    g.PlayState.NumberOfMonstersExact,
 			HPPerMonster:             g.PlayState.HPPerMonster,
+			HPPerMonsterCopy:         g.PlayState.HPPerMonsterCopy,
 			MonstersKilled:           g.PlayState.MonstersKilled,
 			MonstersRemaining:        g.PlayState.MonstersRemaining,
 			MonsterHealth:            g.PlayState.MonsterHealth,
@@ -141,10 +149,19 @@ func (g *Game) Save() {
 	}
 
 	saveState := &SaveState{
-		Cards:      cardsState,
-		WindowSize: g.WindowSize,
-		PlayState:  playState,
-		Screen:     g.Screen,
+		Cards:           cardsState,
+		WindowSize:      g.WindowSize,
+		PlayState:       playState,
+		Screen:          g.Screen,
+		StartButtonName: g.StartButton.Name,
+		HighestWave:     g.HighestWave,
+		MenuItemShown:   make(map[int]bool),
+		Upgrades:        g.Cards.Upgrades,
+		NumberSelected:  g.Cards.NumberSelected,
+	}
+
+	for i, menuItem := range g.MenuItems {
+		saveState.MenuItemShown[i] = menuItem.Shown
 	}
 
 	dumpFile, err := os.Create("game/save/save.bin")
@@ -178,4 +195,81 @@ func (g *Game) Load() *SaveState {
 	}
 
 	return &saveState
+}
+
+func (g *Game) UpdateToMatchLoadedState(state *SaveState) {
+	g.WindowSize = state.WindowSize
+	g.Screen = state.Screen
+	g.StartButton.Name = state.StartButtonName
+	g.HighestWave = state.HighestWave
+
+	for i, menuItem := range g.MenuItems {
+		menuItem.Shown = state.MenuItemShown[i]
+	}
+
+	if state.PlayState != nil {
+		g.PlayState = &play.State{}
+		g.PlayState.Wave = state.PlayState.Wave
+		g.PlayState.TimeRemaining = state.PlayState.TimeRemaining
+		g.PlayState.Playing = state.PlayState.Playing
+		g.PlayState.NumberOfMonsters = state.PlayState.NumberOfMonsters
+		g.PlayState.NumberOfMonstersExact = state.PlayState.NumberOfMonstersExact
+		g.PlayState.HPPerMonster = state.PlayState.HPPerMonster
+		g.PlayState.HPPerMonsterCopy = state.PlayState.HPPerMonsterCopy
+		g.PlayState.MonstersKilled = state.PlayState.MonstersKilled
+		g.PlayState.MonstersRemaining = state.PlayState.MonstersRemaining
+		g.PlayState.MonsterHealth = state.PlayState.MonsterHealth
+		g.PlayState.NumberOfMonstersAttacked = state.PlayState.NumberOfMonstersAttacked
+		g.PlayState.DamagePerSecond = state.PlayState.DamagePerSecond
+		g.PlayState.SingleTargetBoost = state.PlayState.SingleTargetBoost
+		g.PlayState.ActiveCards = make([]*cards.PlayCard, 3)
+	}
+
+	g.Cards.Upgrades = state.Upgrades
+	g.Cards.NumberSelected = state.NumberSelected
+	for _, card := range g.Cards.Cards {
+		for _, saveCard := range state.Cards {
+			if card.Id != saveCard.Id {
+				continue
+			}
+
+			card.State = saveCard.State
+			card.PlayCard.Active = saveCard.PlayCard.Active
+			card.PlayCard.ActiveTime = saveCard.PlayCard.ActiveTime
+			card.PlayCard.ActiveRemaining = saveCard.PlayCard.ActiveRemaining
+			card.PlayCard.CoolDown = saveCard.PlayCard.CoolDown
+			card.PlayCard.CoolDownRemaining = saveCard.PlayCard.CoolDownRemaining
+			card.PlayCard.ActiveSingleTargetDamageBoost = saveCard.PlayCard.ActiveSingleTargetDamageBoost
+			card.PlayCard.PassiveDamageBoost = saveCard.PlayCard.PassiveDamageBoost
+			card.PlayCard.ActiveMultiTargetBoost = saveCard.PlayCard.ActiveMultiTargetBoost
+			card.PlayCard.PassiveMultiTargetBoost = saveCard.PlayCard.PassiveMultiTargetBoost
+			card.Update(g.WindowSize.CurrentWidthFactor, g.WindowSize.CurrentHeightFactor)
+
+			if card.State == cards.StateSelected {
+				card.AddToHand(saveCard.Number+1, g.WindowSize.CurrentWidthFactor, g.WindowSize.CurrentHeightFactor)
+				g.Cards.Selected[saveCard.Number] = card.PlayCard
+			}
+
+			if g.PlayState != nil && card.PlayCard.Active {
+				g.PlayState.ActiveCards[saveCard.Number] = card.PlayCard
+			}
+		}
+	}
+
+	for _, menuItem := range g.MenuItems {
+		menuItem.UpdateSize(g.WindowSize.CurrentWidthFactor, g.WindowSize.CurrentHeightFactor)
+	}
+	for _, card := range g.Cards.Cards {
+		card.Update(g.WindowSize.CurrentWidthFactor, g.WindowSize.CurrentHeightFactor)
+	}
+	for _, divider := range g.MainDividers {
+		divider.UpdateSize(g.WindowSize.CurrentWidthFactor, g.WindowSize.CurrentHeightFactor)
+	}
+	for _, divider := range g.PlayDividers {
+		divider.UpdateSize(g.WindowSize.CurrentWidthFactor, g.WindowSize.CurrentHeightFactor)
+	}
+	g.StartButton.UpdateSize(g.WindowSize.CurrentWidthFactor, g.WindowSize.CurrentHeightFactor)
+
+	g.WindowSize.PreviousHeightFactor = g.WindowSize.CurrentHeightFactor
+	g.WindowSize.PreviousWidthFactor = g.WindowSize.CurrentWidthFactor
 }

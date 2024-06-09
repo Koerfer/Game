@@ -10,6 +10,8 @@ type Cards struct {
 	Cards          []*Card
 	Selected       []*PlayCard
 	NumberSelected int
+
+	Upgrades int
 }
 
 func (cs *Cards) Init() {

@@ -13,6 +13,7 @@ type State struct {
 	NumberOfMonsters      int
 	NumberOfMonstersExact float64
 	HPPerMonster          float64
+	HPPerMonsterCopy      float64 // to be returned to after boss fight
 
 	MonstersKilled    int
 	MonstersRemaining int
@@ -25,14 +26,15 @@ type State struct {
 	ActiveCards []*cards.PlayCard
 }
 
-func (s *State) Update(timeDelta time.Duration) {
+func (s *State) Update(timeDelta time.Duration, highestWave int) int8 {
+	s.TimeRemaining -= timeDelta
+	if s.TimeRemaining <= -5*time.Second {
+		return -1
+	}
 	if s.TimeRemaining <= 0 {
 		s.Playing = false
-		s.TimeRemaining = 0
-		return
+		return 0
 	}
-
-	s.TimeRemaining -= timeDelta
 
 	for i, activeCard := range s.ActiveCards {
 		if activeCard == nil {
@@ -46,7 +48,21 @@ func (s *State) Update(timeDelta time.Duration) {
 	}
 
 	if s.MonstersRemaining == 0 {
-		s.prepareNewWave()
+		s.Wave++
+		mod10 := s.Wave % 10
+		s.prepareNewWave(mod10)
+
+		if s.Wave > highestWave {
+			if mod10 == 5 {
+				if s.Wave > 55 {
+					return 0
+					// no new cards to gain
+				}
+				return 1
+			} else if mod10 == 0 {
+				return 2
+			}
+		}
 	}
 
 	killed := s.MonstersKilled
@@ -67,13 +83,31 @@ func (s *State) Update(timeDelta time.Duration) {
 			s.MonstersKilled += 1
 		}
 	}
+
+	return 0
 }
 
-func (s *State) prepareNewWave() {
-	s.Wave++
+func (s *State) prepareNewWave(mod10 int) {
 	s.MonstersKilled = 0
 	s.NumberOfMonstersExact *= 1.15
-	s.NumberOfMonsters = int(s.NumberOfMonstersExact)
+	s.HPPerMonsterCopy *= 1.2
+
+	switch mod10 {
+	case 5:
+		s.NumberOfMonsters = 1
+		s.HPPerMonster = s.HPPerMonsterCopy * s.NumberOfMonstersExact
+		s.HPPerMonsterCopy *= 1.2
+	case 0:
+		s.NumberOfMonsters = 1
+		s.HPPerMonster = s.HPPerMonsterCopy * s.NumberOfMonstersExact
+		s.HPPerMonsterCopy *= 1.2
+	case 1, 6:
+		s.HPPerMonster = s.HPPerMonsterCopy
+		s.NumberOfMonsters = int(s.NumberOfMonstersExact)
+	default:
+		s.NumberOfMonsters = int(s.NumberOfMonstersExact)
+	}
+
 	s.HPPerMonster *= 1.2
 	s.MonstersRemaining = s.NumberOfMonsters
 	healths := make([]float64, s.NumberOfMonsters)
