@@ -1,15 +1,32 @@
 package play
 
-import "time"
+import (
+	"game/game/cards"
+	"time"
+)
 
-func Start() *State {
+func Start(selectedCards []*cards.Card) *State {
 	initialState := &State{
-		Wave:              1,
-		TimeRemaining:     1 * time.Minute,
-		NumberOfMonsters:  1,
-		HPPerMonster:      5,
-		MonstersRemaining: 5,
-		MonsterHealth:     []int{5},
+		Wave:                     1,
+		TimeRemaining:            1 * time.Minute,
+		NumberOfMonsters:         1,
+		Playing:                  true,
+		NumberOfMonstersExact:    1,
+		HPPerMonster:             2,
+		MonstersRemaining:        1,
+		MonsterHealth:            []float64{2},
+		DamagePerSecond:          5, // 0.2
+		NumberOfMonstersAttacked: 2, // 1
+		ActiveCards:              make([]*cards.Card, 3),
+		SingleTargetBoost:        1,
+	}
+
+	for _, selectedCard := range selectedCards {
+		if selectedCard == nil {
+			continue
+		}
+
+		initialState.DamagePerSecond *= selectedCard.PassiveDamageBoost
 	}
 
 	return initialState

@@ -22,29 +22,31 @@ var (
 
 func (c *Card) Update(widthFactor, heightFactor float64) {
 	shiftX := 12.0
-	if c.BasePosX == 8 {
+	if c.basePosX == 8 {
 		shiftX = 8.0
-	} else if c.BasePosX == 12 {
+	} else if c.basePosX == 12 {
 		shiftX = 4.0
 	}
 
 	shiftY := 3.0
-	if c.BasePosY == 8 {
+	if c.basePosY == 8 {
 		shiftY = -1.0
 	}
 
-	newWidth, newHeight, newX, newY := helper.GetNewSizeAndPosition(c.BaseWidth, c.BaseHeight, c.BasePosX, c.BasePosY, widthFactor, heightFactor, shiftX, shiftY)
+	newWidth, newHeight, newX, newY := helper.GetNewSizeAndPosition(c.baseWidth, c.baseHeight, c.basePosX, c.basePosY, widthFactor, heightFactor, shiftX, shiftY)
 	newWidth -= 7
 	newHeight -= 7
 	newNameTextSize := helper.GetNewTextSize(c.BaseNameTextSize, heightFactor, newWidth, c.Name)
 
-	c.CurrentWidth = newWidth
-	c.CurrentHeight = newHeight
+	c.currentWidth = newWidth
+	c.currentHeight = newHeight
 	c.CurrentPosX = newX
 	c.CurrentPosY = newY
 	c.LockedImage = c.createImage(newX, newY, newWidth, newHeight, newNameTextSize, heightFactor, StateLocked)
 	c.UnlockedImage = c.createImage(newX, newY, newWidth, newHeight, newNameTextSize, heightFactor, StateUnlocked)
 	c.SelectedImage = c.createImage(newX, newY, newWidth, newHeight, newNameTextSize, heightFactor, StateSelected)
+
+	c.updatePlayCard(widthFactor, heightFactor)
 }
 
 func (c *Card) createImage(newX, newY, newWidth, newHeight, newNameTextSize, heightFactor float64, state State) *ebiten.Image {
@@ -84,21 +86,20 @@ func (c *Card) createImage(newX, newY, newWidth, newHeight, newNameTextSize, hei
 	case StateLocked:
 		c.drawPadLock(cardImage, newWidth, newHeight, float32(newX), float32(newY))
 	default:
-		c.printName(cardImage, newNameTextSize, newWidth, newX, newY, textColour)
-		c.printDescription(cardImage, newNameTextSize, heightFactor, newWidth, newHeight, newX, newY, textColour)
+		c.printName(cardImage, newNameTextSize, newWidth, newHeight, newX, newY, textColour)
+		c.printDescription(cardImage, heightFactor, newWidth, newHeight, newX, newY, textColour)
 	}
 
 	return cardImage
 }
 
-func (c *Card) printName(cardImage *ebiten.Image, newNameTextSize, newWidth, newX, newY float64, textColour color.Color) {
+func (c *Card) printName(cardImage *ebiten.Image, newNameTextSize, newWidth, newHeight, newX, newY float64, textColour color.Color) {
 	op := &text.DrawOptions{}
 	op.ColorScale.ScaleWithColor(textColour)
 	op.PrimaryAlign = text.AlignCenter
-	op.SecondaryAlign = text.AlignCenter
 
 	posX := newWidth/2 + newX
-	posY := newY + newNameTextSize/1.85
+	posY := newY + (newHeight*0.2-newNameTextSize)/2
 	op.GeoM.Translate(posX, posY)
 
 	text.Draw(cardImage, c.Name, &text.GoTextFace{
@@ -107,16 +108,22 @@ func (c *Card) printName(cardImage *ebiten.Image, newNameTextSize, newWidth, new
 	}, op)
 }
 
-func (c *Card) printDescription(cardImage *ebiten.Image, newNameTextSize, heightFactor, newWidth, newHeight, newX, newY float64, textColour color.Color) {
+func (c *Card) printNamePlay(cardImage *ebiten.Image, newNameTextSize, newWidth, newHeight, newX, newY float64, textColour color.Color) {
 	op := &text.DrawOptions{}
 	op.ColorScale.ScaleWithColor(textColour)
 	op.PrimaryAlign = text.AlignCenter
-	op.SecondaryAlign = text.AlignCenter
 
 	posX := newWidth/2 + newX
-	posY := newY + newHeight/2 + (newNameTextSize/1.85)/2
+	posY := newY + (newHeight*0.3-newNameTextSize)/2
 	op.GeoM.Translate(posX, posY)
 
+	text.Draw(cardImage, c.Name, &text.GoTextFace{
+		Source: c.Font,
+		Size:   newNameTextSize,
+	}, op)
+}
+
+func (c *Card) printDescription(cardImage *ebiten.Image, heightFactor, newWidth, newHeight, newX, newY float64, textColour color.Color) {
 	newDescriptionTextSize := helper.GetNewTextSize(c.BaseDescriptionTextSize, heightFactor, newWidth, c.Description)
 	widthOfText, _ := text.Measure(c.Description, &text.GoTextFace{
 		Source: c.Font,
@@ -124,12 +131,21 @@ func (c *Card) printDescription(cardImage *ebiten.Image, newNameTextSize, height
 	}, 0)
 
 	splitDescription := strings.Split(c.Description, "\n")
+
+	op := &text.DrawOptions{}
+	op.ColorScale.ScaleWithColor(textColour)
+	op.PrimaryAlign = text.AlignCenter
+
+	finalSize := newWidth / widthOfText * newDescriptionTextSize * 0.9
+	posX := newWidth/2 + newX
+	posY := newY + newHeight/2 - (finalSize*1.1*float64(len(splitDescription)))/6
+	op.GeoM.Translate(posX, posY)
 	for _, subDescription := range splitDescription {
 		text.Draw(cardImage, subDescription, &text.GoTextFace{
 			Source: c.Font,
-			Size:   newWidth / widthOfText * newDescriptionTextSize * 0.9,
+			Size:   finalSize,
 		}, op)
-		op.GeoM.Translate(0, newWidth/widthOfText*newDescriptionTextSize)
+		op.GeoM.Translate(0, finalSize*1.1)
 	}
 }
 

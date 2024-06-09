@@ -25,7 +25,6 @@ func (g *Game) Draw(screen *ebiten.Image) {
 
 	g.DrawDividers(screen)
 	g.DrawMenuItems(screen)
-	g.PrintDebug(screen)
 }
 
 func (g *Game) CalculateNewFactors() {
@@ -113,8 +112,20 @@ func (g *Game) DrawPlay(screen *ebiten.Image) {
 	timeRemainingText := fmt.Sprintf(`Time: %02d:%02d`, int(g.PlayState.TimeRemaining.Minutes()), int(g.PlayState.TimeRemaining.Seconds())%60)
 	waveText := fmt.Sprintf(`Wave: %d`, g.PlayState.Wave)
 	numberMonstersText := fmt.Sprintf(`#Monsters: %d`, g.PlayState.NumberOfMonsters)
-	hpPerMonsterText := fmt.Sprintf(`HP Per Monster: %d`, g.PlayState.HPPerMonster)
+	hpPerMonsterText := fmt.Sprintf(`HP Per Monster: %d`, int(g.PlayState.HPPerMonster))
+	if g.PlayState.HPPerMonster < 100 {
+		hpPerMonsterText = fmt.Sprintf(`HP Per Monster: %.1f`, g.PlayState.HPPerMonster)
+	}
 	numberMonstersRemainingText := fmt.Sprintf(`Monsters Remaining: %d`, g.PlayState.MonstersRemaining)
+	monstersAttackedText := fmt.Sprintf(`Monsters Attacked: %d`, g.PlayState.NumberOfMonstersAttacked)
+	damagePerSecondSingleText := fmt.Sprintf(`Single Damage Per Second: %d`, int(g.PlayState.DamagePerSecond*g.PlayState.SingleTargetBoost))
+	if g.PlayState.HPPerMonster < 100 {
+		damagePerSecondSingleText = fmt.Sprintf(`Single Damage Per Second: %.1f`, g.PlayState.DamagePerSecond*g.PlayState.SingleTargetBoost)
+	}
+	damagePerSecondMultiText := fmt.Sprintf(`Multi Damage Per Second: %d`, int(g.PlayState.DamagePerSecond))
+	if g.PlayState.HPPerMonster < 100 {
+		damagePerSecondMultiText = fmt.Sprintf(`Multi Damage Per Second: %.1f`, g.PlayState.DamagePerSecond)
+	}
 
 	op := &text.DrawOptions{}
 	op.ColorScale.ScaleWithColor(color.White)
@@ -142,11 +153,40 @@ func (g *Game) DrawPlay(screen *ebiten.Image) {
 		Size:   g.WindowSize.CurrentHeightFactor * 1,
 	}, op)
 
-	op.GeoM.Translate(-4*g.WindowSize.CurrentWidthFactor, g.WindowSize.CurrentHeightFactor*3.1)
+	op.GeoM.Translate(-4*g.WindowSize.CurrentWidthFactor, g.WindowSize.CurrentHeightFactor*2.5)
 	text.Draw(screen, numberMonstersRemainingText, &text.GoTextFace{
 		Source: g.font,
-		Size:   g.WindowSize.CurrentHeightFactor * 1.5,
+		Size:   g.WindowSize.CurrentHeightFactor * 1,
 	}, op)
+
+	op.GeoM.Translate(0, g.WindowSize.CurrentHeightFactor*1.1)
+	text.Draw(screen, monstersAttackedText, &text.GoTextFace{
+		Source: g.font,
+		Size:   g.WindowSize.CurrentHeightFactor * 1,
+	}, op)
+
+	op.GeoM.Translate(0, g.WindowSize.CurrentHeightFactor*1.1)
+	text.Draw(screen, damagePerSecondMultiText, &text.GoTextFace{
+		Source: g.font,
+		Size:   g.WindowSize.CurrentHeightFactor * 1,
+	}, op)
+
+	op.GeoM.Translate(0, g.WindowSize.CurrentHeightFactor*1.1)
+	text.Draw(screen, damagePerSecondSingleText, &text.GoTextFace{
+		Source: g.font,
+		Size:   g.WindowSize.CurrentHeightFactor * 1,
+	}, op)
+
+	for _, card := range g.Cards.Selected {
+		if card == nil || card.PlayCard == nil {
+			continue
+		}
+		g.op.GeoM.Reset()
+		g.op.GeoM.Translate(card.PlayCard.CurrentPosX, card.PlayCard.CurrentPosY)
+		screen.DrawImage(card.PlayCard.PlayImage, &ebiten.DrawImageOptions{
+			GeoM: g.op.GeoM,
+		})
+	}
 
 	for _, divider := range g.PlayDividers {
 		g.op.GeoM.Reset()
@@ -155,13 +195,14 @@ func (g *Game) DrawPlay(screen *ebiten.Image) {
 			GeoM: g.op.GeoM,
 		})
 	}
-}
 
-func (g *Game) PrintDebug(screen *ebiten.Image) {
-	for _, divider := range g.MainDividers {
+	for _, timer := range g.Timers {
+		if timer == nil {
+			continue
+		}
 		g.op.GeoM.Reset()
-		g.op.GeoM.Translate(float64(divider.CurrentPosX), float64(divider.CurrentPosY))
-		screen.DrawImage(divider.Image, &ebiten.DrawImageOptions{
+		g.op.GeoM.Translate(timer.CurrentPosX, timer.CurrentPosY)
+		screen.DrawImage(timer.Image, &ebiten.DrawImageOptions{
 			GeoM: g.op.GeoM,
 		})
 	}

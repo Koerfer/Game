@@ -11,10 +11,10 @@ import (
 )
 
 type Button struct {
-	BaseWidth    float64
-	BaseHeight   float64
-	BasePosX     float64
-	BasePosY     float64
+	baseWidth    float64
+	baseHeight   float64
+	basePosX     float64
+	basePosY     float64
 	BaseTextSize float64
 
 	CurrentWidth    float64
@@ -41,10 +41,10 @@ func (b *Button) Init(width, height, x, y float64, shown bool, name string, font
 		Max: image.Point{X: int(x + width), Y: int(y + height)},
 	}, &ebiten.NewImageOptions{Unmanaged: false})
 
-	b.BaseWidth = width
-	b.BaseHeight = height
-	b.BasePosX = x
-	b.BasePosY = y
+	b.baseWidth = width
+	b.baseHeight = height
+	b.basePosX = x
+	b.basePosY = y
 
 	b.CurrentWidth = width
 	b.CurrentHeight = height
@@ -106,7 +106,7 @@ func (b *Button) Update() {
 }
 
 func (b *Button) UpdateSize(widthFactor, heightFactor float64) {
-	newWidth, newHeight, newX, newY := helper.GetNewSizeAndPosition(b.BaseWidth, b.BaseHeight, b.BasePosX, b.BasePosY, widthFactor, heightFactor, 0, 0)
+	newWidth, newHeight, newX, newY := helper.GetNewSizeAndPosition(b.baseWidth, b.baseHeight, b.basePosX, b.basePosY, widthFactor, heightFactor, 0, 0)
 	newTextSize := helper.GetNewTextSize(b.BaseTextSize, heightFactor, newWidth, b.Name)
 
 	b.CurrentWidth = newWidth

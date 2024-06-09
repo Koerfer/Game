@@ -26,6 +26,7 @@ type Game struct {
 	PlayDividers       []*entities.Divider
 	Cards              *cards.Cards
 	StartButton        *entities.Button
+	Timers             []*cards.Timer
 
 	PlayState *play.State
 
@@ -42,19 +43,23 @@ func Init() *Game {
 		CurrentScreenHeight: screenHeight,
 	}
 
+	g.Timers = make([]*cards.Timer, 3)
+
 	g.font = font.GetBold()
 
 	menuHeader := &entities.Button{}
-	menuHeader.Init(4, 2, 0, 0, true, "MENU", g.font, 2 /*text*/, colours.White /*background*/, colours.Black /*border*/, colours.White, screen.ScreenMain)
+	menuHeader.Init(4, 2, 0, 0, true, "MENU", g.font, 2 /*text*/, colours.White /*background*/, colours.Black /*border*/, colours.White, screen.ScreenNothing)
+	menuPlay := &entities.Button{}
+	menuPlay.Init(4, 2, 0, 2, true, "PLAY", g.font, 1.5 /*text*/, colours.White /*background*/, colours.Black /*border*/, colours.Green, screen.ScreenMain)
 	menuCards := &entities.Button{}
-	menuCards.Init(4, 2, 0, 2, true, "CARDS", g.font, 1.5 /*text*/, colours.White /*background*/, colours.Black /*border*/, colours.Blue, screen.ScreenCards)
+	menuCards.Init(4, 2, 0, 4, true, "CARDS", g.font, 1.5 /*text*/, colours.White /*background*/, colours.Black /*border*/, colours.Blue, screen.ScreenCards)
 	menuTech := &entities.Button{}
-	menuTech.Init(4, 2, 0, 4, true, "TECH", g.font, 1.5 /*text*/, colours.White /*background*/, colours.Black /*border*/, colours.Green, screen.ScreenTech)
+	menuTech.Init(4, 2, 0, 6, true, "TECH", g.font, 1.5 /*text*/, colours.White /*background*/, colours.Black /*border*/, colours.Red, screen.ScreenTech)
 	menuAnna := &entities.Button{}
-	menuAnna.Init(4, 2, 0, 6, true, "ANNA", g.font, 1.5 /*text*/, colours.Pink /*background*/, colours.Black /*border*/, colours.Pink, screen.ScreenAnna)
+	menuAnna.Init(4, 2, 0, 8, true, "ANNA", g.font, 1.5 /*text*/, colours.Pink /*background*/, colours.Black /*border*/, colours.Pink, screen.ScreenAnna)
 	menuSettings := &entities.Button{}
 	menuSettings.Init(4, 2, 0, 14, true, "SETTINGS", g.font, 1 /*text*/, colours.Grey /*background*/, colours.Black /*border*/, colours.Grey, screen.ScreenSettings)
-	g.MenuItems = append(g.MenuItems, menuHeader, menuCards, menuTech, menuAnna, menuSettings)
+	g.MenuItems = append(g.MenuItems, menuHeader, menuPlay, menuCards, menuTech, menuAnna, menuSettings)
 
 	g.StartButton = &entities.Button{}
 	g.StartButton.Init(8, 4, 6, 6, true, "START", g.font, 3 /*text*/, colours.Green /*background*/, colours.DarkGreen /*border*/, colours.Green, screen.ScreenPlay)
@@ -77,7 +82,7 @@ func Init() *Game {
 	cs.Init()
 	g.Cards = cs
 
-	g.Screen = screen.ScreenMain
+	g.Screen = screen.ScreenNothing
 
 	return g
 }
@@ -87,7 +92,26 @@ func (g *Game) Update() error {
 	g.PreviousUpdateTime = time.Now()
 
 	if g.Screen == screen.ScreenPlay {
-		g.PlayState.TimeRemaining -= timeDelta
+		for i, selectedCard := range g.Cards.Selected {
+			if selectedCard == nil {
+				continue
+			}
+			if selectedCard.PlayCard.Active {
+				selectedCard.PlayCard.ActiveRemaining -= timeDelta
+				g.Timers[i] = selectedCard.PlayCard.TimerImage(selectedCard.PlayCard.ActiveRemaining, selectedCard.ActivationTime, true, g.WindowSize.CurrentHeightFactor)
+				continue
+			}
+			if selectedCard.PlayCard.CoolDownRemaining > 0 {
+				selectedCard.PlayCard.CoolDownRemaining -= timeDelta
+				g.Timers[i] = selectedCard.PlayCard.TimerImage(selectedCard.PlayCard.CoolDownRemaining, selectedCard.CoolDown, false, g.WindowSize.CurrentHeightFactor)
+				if selectedCard.PlayCard.CoolDownRemaining <= 0 {
+					selectedCard.PlayCard.CoolDownRemaining = 0
+					g.Timers[i] = nil
+				}
+			}
+		}
+
+		g.PlayState.Update(timeDelta)
 	}
 
 	g.touchIDs = ebiten.AppendTouchIDs(g.touchIDs[:0])
@@ -106,8 +130,31 @@ func (g *Game) Update() error {
 
 		switch g.Screen {
 		case screen.ScreenCards:
+			if g.PlayState != nil && g.PlayState.Playing {
+				break
+			}
 			for _, card := range g.Cards.Cards {
-				g.Cards.NumberSelected += card.Click(x, y, g.Cards.NumberSelected)
+				added := card.Click(x, y, g.Cards.NumberSelected)
+				switch added {
+				case 1:
+					for i, selectedCard := range g.Cards.Selected {
+						if selectedCard == nil {
+							card.AddToHand(i+1, g.WindowSize.CurrentWidthFactor, g.WindowSize.CurrentHeightFactor)
+							g.Cards.Selected[i] = card
+							break
+						}
+					}
+				case -1:
+					for i, selectedCard := range g.Cards.Selected {
+						if selectedCard != nil {
+							g.Cards.Selected[i] = nil
+							break
+						}
+					}
+				default:
+					// do nothing
+				}
+				g.Cards.NumberSelected += added
 			}
 		case screen.ScreenMain:
 			newScreen := g.StartButton.Click(x, y)
@@ -115,7 +162,7 @@ func (g *Game) Update() error {
 			case screen.ScreenPlay:
 				g.Screen = newScreen
 				if g.PlayState == nil {
-					g.PlayState = play.Start()
+					g.PlayState = play.Start(g.Cards.Selected)
 					g.StartButton.Name = "CONTINUE"
 					g.StartButton.Update()
 				}
@@ -124,7 +171,20 @@ func (g *Game) Update() error {
 			}
 
 		case screen.ScreenPlay:
-			// todo
+			for i, selectedCard := range g.Cards.Selected {
+				if selectedCard == nil {
+					continue
+				}
+				if selectedCard.PlayCard.Active {
+					continue
+				}
+				if selectedCard.PlayCard.CoolDownRemaining > 0 {
+					continue
+				}
+				if selectedCard.PlayCard.Click(x, y) {
+					g.PlayState.CardActivation(selectedCard, i)
+				}
+			}
 		default:
 			// do nothing
 		}

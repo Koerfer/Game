@@ -1,10 +1,12 @@
 package cards
 
 import (
+	"fmt"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/text/v2"
 	"image"
 	"image/color"
+	"time"
 )
 
 type Card struct {
@@ -15,13 +17,13 @@ type Card struct {
 	TextColour              color.Color
 	Font                    *text.GoTextFaceSource
 
-	BaseWidth  float64
-	BaseHeight float64
-	BasePosX   float64
-	BasePosY   float64
+	baseWidth  float64
+	baseHeight float64
+	basePosX   float64
+	basePosY   float64
 
-	CurrentWidth  float64
-	CurrentHeight float64
+	currentWidth  float64
+	currentHeight float64
 	CurrentPosX   float64
 	CurrentPosY   float64
 
@@ -30,6 +32,12 @@ type Card struct {
 	SelectedImage    *ebiten.Image
 	UnlockedImage    *ebiten.Image
 	LockedImage      *ebiten.Image
+
+	ActiveSingleTargetDamageBoost float64
+	PassiveDamageBoost            float64
+	ActivationTime                time.Duration
+	CoolDown                      time.Duration
+	PlayCard                      *PlayCard
 
 	State State
 }
@@ -42,20 +50,20 @@ const (
 	StateSelected
 )
 
-func (c *Card) Init(width, height, x, y float64, name, description string, font *text.GoTextFaceSource, nameTextSize, descriptionTextSize float64, textColour, backgroundColour, colour color.Color) {
+func (c *Card) Init(x, y float64, name string, font *text.GoTextFaceSource, nameTextSize, descriptionTextSize float64, textColour, backgroundColour, colour color.Color) {
 	whiteImage.Fill(color.White)
 
 	cardImage := ebiten.NewImageWithOptions(image.Rectangle{
 		Min: image.Point{X: int(x), Y: int(y)},
-		Max: image.Point{X: int(x + width), Y: int(y + height)},
+		Max: image.Point{X: int(x + 4), Y: int(y + 8)},
 	}, &ebiten.NewImageOptions{Unmanaged: false})
 
-	c.BaseWidth = width
-	c.BaseHeight = height
-	c.BasePosX = x
-	c.BasePosY = y
-	c.CurrentWidth = width
-	c.CurrentHeight = height
+	c.baseWidth = 4
+	c.baseHeight = 8
+	c.basePosX = x
+	c.basePosY = y
+	c.currentWidth = 4
+	c.currentHeight = 8
 	c.CurrentPosX = x
 	c.CurrentPosY = y
 	c.SelectedImage = cardImage
@@ -65,17 +73,32 @@ func (c *Card) Init(width, height, x, y float64, name, description string, font 
 	c.Colour = colour
 	c.TextColour = textColour
 	c.Name = name
-	c.Description = description
 	c.Font = font
 	c.BaseNameTextSize = nameTextSize
 	c.BaseDescriptionTextSize = descriptionTextSize
 
 	c.State = StateUnlocked
+
+	c.addPlayCard()
+}
+
+func (c *Card) addEffect(description string, damageBoost, singleTargetDamageBoost float64, activationTime, coolDown time.Duration) {
+	if damageBoost != 1 {
+		c.Description = fmt.Sprintf(description, int(damageBoost), int(singleTargetDamageBoost), int(coolDown.Seconds()))
+	} else {
+		c.Description = description
+	}
+
+	c.PassiveDamageBoost = damageBoost
+	c.ActiveSingleTargetDamageBoost = singleTargetDamageBoost
+	c.ActivationTime = activationTime
+	c.CoolDown = coolDown
+	c.PlayCard.CoolDownRemaining = 0
 }
 
 func (c *Card) Click(x, y, numberSelected int) int {
-	if c.CurrentPosX < float64(x) && c.CurrentPosX+c.CurrentWidth > float64(x) &&
-		c.CurrentPosY < float64(y) && c.CurrentPosY+c.CurrentHeight > float64(y) {
+	if c.CurrentPosX < float64(x) && c.CurrentPosX+c.currentWidth > float64(x) &&
+		c.CurrentPosY < float64(y) && c.CurrentPosY+c.currentHeight > float64(y) {
 		switch c.State {
 		case StateLocked:
 			return 0
