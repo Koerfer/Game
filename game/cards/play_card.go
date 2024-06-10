@@ -37,6 +37,9 @@ type PlayCard struct {
 	ActiveMultiTargetBoost  int
 	PassiveMultiTargetBoost int
 
+	PassiveTimeSlow int64
+	ActiveTimeSkip  time.Duration
+
 	PlayImage *ebiten.Image
 }
 
@@ -59,13 +62,16 @@ func (c *Card) addPlayCard() {
 }
 
 func (pc *PlayCard) addEffect(description string, passiveDamageBoost, activeSingleTargetDamageBoost float64,
-	passiveMultiBoost, activeMultiBoost int, activationTime, coolDown time.Duration) {
+	passiveMultiBoost, activeMultiBoost int,
+	passiveTimeSlow int64, activeTimeSkip time.Duration, activationTime, coolDown time.Duration) {
 	pc.BaseDescription = description
 
 	if passiveDamageBoost != 1 {
 		pc.Description = fmt.Sprintf(description, int(passiveDamageBoost), int(activeSingleTargetDamageBoost), int(coolDown.Seconds()))
 	} else if passiveMultiBoost != 1 {
 		pc.Description = fmt.Sprintf(description, passiveMultiBoost, activeMultiBoost, int(coolDown.Seconds()))
+	} else if passiveTimeSlow != 1 {
+		pc.Description = fmt.Sprintf(description, int(passiveTimeSlow), int(activeTimeSkip.Seconds()), int(coolDown.Seconds()))
 	} else {
 		pc.Description = description
 	}
@@ -75,6 +81,9 @@ func (pc *PlayCard) addEffect(description string, passiveDamageBoost, activeSing
 
 	pc.PassiveMultiTargetBoost = passiveMultiBoost
 	pc.ActiveMultiTargetBoost = activeMultiBoost
+
+	pc.PassiveTimeSlow = passiveTimeSlow
+	pc.ActiveTimeSkip = activeTimeSkip
 
 	pc.ActiveTime = activationTime
 	pc.CoolDown = coolDown
@@ -86,6 +95,8 @@ func (c *Card) updatePlayCard(widthFactor, heightFactor float64) {
 		c.PlayCard.Description = fmt.Sprintf(c.PlayCard.BaseDescription, int(c.PlayCard.PassiveDamageBoost), int(c.PlayCard.ActiveSingleTargetDamageBoost), int(c.PlayCard.CoolDown.Seconds()))
 	} else if c.PlayCard.PassiveMultiTargetBoost != 1 {
 		c.PlayCard.Description = fmt.Sprintf(c.PlayCard.BaseDescription, c.PlayCard.PassiveMultiTargetBoost, c.PlayCard.ActiveMultiTargetBoost, int(c.PlayCard.CoolDown.Seconds()))
+	} else if c.PlayCard.PassiveTimeSlow != 1 {
+		c.PlayCard.Description = fmt.Sprintf(c.PlayCard.BaseDescription, int(c.PlayCard.PassiveTimeSlow), int(c.PlayCard.ActiveTimeSkip.Seconds()), int(c.PlayCard.CoolDown.Seconds()))
 	}
 
 	shiftX := 12.0

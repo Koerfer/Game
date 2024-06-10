@@ -107,7 +107,7 @@ func (g *Game) newInit() {
 }
 
 func (g *Game) Update() error {
-	timeDelta := time.Since(g.PreviousUpdateTime)
+	timeDelta := time.Since(g.PreviousUpdateTime) * 10
 	g.PreviousUpdateTime = time.Now()
 
 	if time.Since(g.PreviousSaveTime) > 2*time.Minute {

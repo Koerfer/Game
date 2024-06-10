@@ -7,6 +7,8 @@ func (s *State) CardActivation(card *cards.PlayCard, number int) {
 	card.ActiveRemaining = card.ActiveTime
 	s.SingleTargetBoost *= card.ActiveSingleTargetDamageBoost
 	s.NumberOfMonstersAttacked *= card.ActiveMultiTargetBoost
+	s.TimeSlow *= card.PassiveTimeSlow
+	s.TimeSkip = card.ActiveTimeSkip
 	s.ActiveCards[number] = card
 }
 
@@ -16,5 +18,5 @@ func (s *State) deactivateCard(card *cards.PlayCard) {
 	card.CoolDownRemaining = card.CoolDown
 	s.SingleTargetBoost /= card.ActiveSingleTargetDamageBoost
 	s.NumberOfMonstersAttacked /= card.ActiveMultiTargetBoost
-
+	s.TimeSlow /= card.PassiveTimeSlow
 }

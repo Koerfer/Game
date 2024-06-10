@@ -123,6 +123,10 @@ func (c *Card) Upgrade(x, y, upgrades int) bool {
 			if c.PlayCard.PassiveDamageBoost != 1 {
 				c.PlayCard.PassiveDamageBoost *= 2
 			}
+			if c.PlayCard.PassiveTimeSlow != 1 {
+				c.PlayCard.PassiveTimeSlow *= 2
+				c.PlayCard.ActiveTimeSkip *= 2
+			}
 
 			return true
 		}

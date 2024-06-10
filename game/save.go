@@ -41,6 +41,9 @@ type PlayCardSaveState struct {
 
 	ActiveMultiTargetBoost  int
 	PassiveMultiTargetBoost int
+
+	PassiveTimeSlow int64
+	ActiveTimeSkip  time.Duration
 }
 
 type PlayState struct {
@@ -60,6 +63,8 @@ type PlayState struct {
 	NumberOfMonstersAttacked int
 	DamagePerSecond          float64
 	SingleTargetBoost        float64
+	TimeSlow                 int64
+	TimeSkip                 time.Duration
 }
 
 func (g *Game) Save() {
@@ -70,17 +75,7 @@ func (g *Game) Save() {
 			continue
 		}
 		selectedCardIds = append(selectedCardIds, selectedCard.Id)
-		playCardState := &PlayCardSaveState{
-			Active:                        selectedCard.Active,
-			ActiveTime:                    selectedCard.ActiveTime,
-			ActiveRemaining:               selectedCard.ActiveRemaining,
-			CoolDown:                      selectedCard.CoolDown,
-			CoolDownRemaining:             selectedCard.CoolDownRemaining,
-			ActiveSingleTargetDamageBoost: selectedCard.ActiveSingleTargetDamageBoost,
-			PassiveDamageBoost:            selectedCard.PassiveDamageBoost,
-			ActiveMultiTargetBoost:        selectedCard.ActiveMultiTargetBoost,
-			PassiveMultiTargetBoost:       selectedCard.PassiveMultiTargetBoost,
-		}
+		playCardState := playCardStateConvert(selectedCard)
 
 		cardState := &CardSaveState{
 			Id:       selectedCard.Id,
@@ -96,6 +91,7 @@ func (g *Game) Save() {
 		if card == nil {
 			continue
 		}
+
 		alreadyCovered := false
 		for _, id := range selectedCardIds {
 			if card.Id == id {
@@ -107,17 +103,7 @@ func (g *Game) Save() {
 			continue
 		}
 
-		playCardState := &PlayCardSaveState{
-			Active:                        card.PlayCard.Active,
-			ActiveTime:                    card.PlayCard.ActiveTime,
-			ActiveRemaining:               card.PlayCard.ActiveRemaining,
-			CoolDown:                      card.PlayCard.CoolDown,
-			CoolDownRemaining:             card.PlayCard.CoolDownRemaining,
-			ActiveSingleTargetDamageBoost: card.PlayCard.ActiveSingleTargetDamageBoost,
-			PassiveDamageBoost:            card.PlayCard.PassiveDamageBoost,
-			ActiveMultiTargetBoost:        card.PlayCard.ActiveMultiTargetBoost,
-			PassiveMultiTargetBoost:       card.PlayCard.PassiveMultiTargetBoost,
-		}
+		playCardState := playCardStateConvert(card.PlayCard)
 
 		cardState := &CardSaveState{
 			Id:       card.Id,
@@ -145,6 +131,8 @@ func (g *Game) Save() {
 			NumberOfMonstersAttacked: g.PlayState.NumberOfMonstersAttacked,
 			DamagePerSecond:          g.PlayState.DamagePerSecond,
 			SingleTargetBoost:        g.PlayState.SingleTargetBoost,
+			TimeSlow:                 g.PlayState.TimeSlow,
+			TimeSkip:                 g.PlayState.TimeSkip,
 		}
 	}
 
@@ -173,6 +161,22 @@ func (g *Game) Save() {
 	enc := gob.NewEncoder(dumpFile)
 	if err := enc.Encode(saveState); err != nil {
 		log.Fatalf("failing to encode data: %v", err)
+	}
+}
+
+func playCardStateConvert(card *cards.PlayCard) *PlayCardSaveState {
+	return &PlayCardSaveState{
+		Active:                        card.Active,
+		ActiveTime:                    card.ActiveTime,
+		ActiveRemaining:               card.ActiveRemaining,
+		CoolDown:                      card.CoolDown,
+		CoolDownRemaining:             card.CoolDownRemaining,
+		ActiveSingleTargetDamageBoost: card.ActiveSingleTargetDamageBoost,
+		PassiveDamageBoost:            card.PassiveDamageBoost,
+		ActiveMultiTargetBoost:        card.ActiveMultiTargetBoost,
+		PassiveMultiTargetBoost:       card.PassiveMultiTargetBoost,
+		PassiveTimeSlow:               card.PassiveTimeSlow,
+		ActiveTimeSkip:                card.ActiveTimeSkip,
 	}
 }
 
@@ -222,6 +226,8 @@ func (g *Game) UpdateToMatchLoadedState(state *SaveState) {
 		g.PlayState.NumberOfMonstersAttacked = state.PlayState.NumberOfMonstersAttacked
 		g.PlayState.DamagePerSecond = state.PlayState.DamagePerSecond
 		g.PlayState.SingleTargetBoost = state.PlayState.SingleTargetBoost
+		g.PlayState.TimeSlow = state.PlayState.TimeSlow
+		g.PlayState.TimeSkip = state.PlayState.TimeSkip
 		g.PlayState.ActiveCards = make([]*cards.PlayCard, 3)
 	}
 
@@ -243,6 +249,8 @@ func (g *Game) UpdateToMatchLoadedState(state *SaveState) {
 			card.PlayCard.PassiveDamageBoost = saveCard.PlayCard.PassiveDamageBoost
 			card.PlayCard.ActiveMultiTargetBoost = saveCard.PlayCard.ActiveMultiTargetBoost
 			card.PlayCard.PassiveMultiTargetBoost = saveCard.PlayCard.PassiveMultiTargetBoost
+			card.PlayCard.PassiveTimeSlow = saveCard.PlayCard.PassiveTimeSlow
+			card.PlayCard.ActiveTimeSkip = saveCard.PlayCard.ActiveTimeSkip
 			card.Update(g.WindowSize.CurrentWidthFactor, g.WindowSize.CurrentHeightFactor)
 
 			if card.State == cards.StateSelected {

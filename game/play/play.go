@@ -22,18 +22,25 @@ type State struct {
 	NumberOfMonstersAttacked int
 	DamagePerSecond          float64
 	SingleTargetBoost        float64
+	TimeSlow                 int64
+	TimeSkip                 time.Duration
 
 	ActiveCards []*cards.PlayCard
 }
 
 func (s *State) Update(timeDelta time.Duration, highestWave int) int8 {
-	s.TimeRemaining -= timeDelta
+	s.TimeRemaining -= time.Duration(timeDelta.Milliseconds()/s.TimeSlow) * time.Millisecond
 	if s.TimeRemaining <= -5*time.Second {
 		return -1
 	}
 	if s.TimeRemaining <= 0 {
 		s.Playing = false
 		return 0
+	}
+
+	if s.TimeSkip != 0 {
+		timeDelta += s.TimeSkip
+		s.TimeSkip = 0
 	}
 
 	for i, activeCard := range s.ActiveCards {
@@ -50,7 +57,7 @@ func (s *State) Update(timeDelta time.Duration, highestWave int) int8 {
 	if s.MonstersRemaining == 0 {
 		s.Wave++
 		mod10 := s.Wave % 10
-		s.prepareNewWave(mod10)
+		s.prepareNewWave(mod10, highestWave)
 
 		if s.Wave > highestWave {
 			if mod10 == 5 {
@@ -59,9 +66,11 @@ func (s *State) Update(timeDelta time.Duration, highestWave int) int8 {
 					// no new cards to gain
 				}
 				return 1
-			} else if mod10 == 0 {
-				return 2
 			}
+		}
+
+		if mod10 == 0 {
+			return 2
 		}
 	}
 
@@ -87,7 +96,11 @@ func (s *State) Update(timeDelta time.Duration, highestWave int) int8 {
 	return 0
 }
 
-func (s *State) prepareNewWave(mod10 int) {
+func (s *State) prepareNewWave(mod10, highestWave int) {
+	if s.Wave == highestWave {
+		s.TimeSlow = 1
+	}
+
 	s.MonstersKilled = 0
 	s.NumberOfMonstersExact *= 1.15
 	s.HPPerMonsterCopy *= 1.2

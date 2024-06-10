@@ -20,6 +20,7 @@ func Start(selectedCards []*cards.PlayCard) *State {
 		NumberOfMonstersAttacked: 2, // 1
 		ActiveCards:              make([]*cards.PlayCard, 3),
 		SingleTargetBoost:        1,
+		TimeSlow:                 1,
 	}
 
 	for _, selectedCard := range selectedCards {
@@ -29,6 +30,7 @@ func Start(selectedCards []*cards.PlayCard) *State {
 
 		initialState.DamagePerSecond *= selectedCard.PassiveDamageBoost
 		initialState.NumberOfMonstersAttacked *= selectedCard.PassiveMultiTargetBoost
+		initialState.TimeSlow *= selectedCard.PassiveTimeSlow
 	}
 
 	return initialState
