@@ -28,7 +28,6 @@ type Game struct {
 	PlayDividers       []*entities.Divider
 	Cards              *cards.Cards
 	StartButton        *entities.Button
-	Timers             []*cards.Timer
 
 	PlayState   *play.State
 	HighestWave int
@@ -60,8 +59,6 @@ func (g *Game) newInit() {
 		CurrentScreenWidth:  screenWidth,
 		CurrentScreenHeight: screenHeight,
 	}
-
-	g.Timers = make([]*cards.Timer, 3)
 
 	g.font = font.GetBold()
 
@@ -107,7 +104,7 @@ func (g *Game) newInit() {
 }
 
 func (g *Game) Update() error {
-	timeDelta := time.Since(g.PreviousUpdateTime) * 10
+	timeDelta := time.Since(g.PreviousUpdateTime)
 	g.PreviousUpdateTime = time.Now()
 
 	if time.Since(g.PreviousSaveTime) > 2*time.Minute {
@@ -115,25 +112,6 @@ func (g *Game) Update() error {
 	}
 
 	if g.Screen == screen.ScreenPlay {
-		for i, selectedCard := range g.Cards.Selected {
-			if selectedCard == nil {
-				continue
-			}
-			if selectedCard.Active {
-				selectedCard.ActiveRemaining -= timeDelta
-				g.Timers[i] = selectedCard.TimerImage(selectedCard.ActiveRemaining, selectedCard.ActiveTime, true, g.WindowSize.CurrentHeightFactor)
-				continue
-			}
-			if selectedCard.CoolDownRemaining > 0 {
-				selectedCard.CoolDownRemaining -= timeDelta
-				g.Timers[i] = selectedCard.TimerImage(selectedCard.CoolDownRemaining, selectedCard.CoolDown, false, g.WindowSize.CurrentHeightFactor)
-				if selectedCard.CoolDownRemaining <= 0 {
-					selectedCard.CoolDownRemaining = 0
-					g.Timers[i] = nil
-				}
-			}
-		}
-
 		pause := g.PlayState.Update(timeDelta, g.HighestWave)
 		switch pause {
 		case -1:
@@ -146,7 +124,6 @@ func (g *Game) Update() error {
 				selectedCard.Active = false
 			}
 			g.StartButton.Name = "START"
-			g.Timers = make([]*cards.Timer, 3)
 			g.StartButton.Update()
 			g.PlayState = nil
 			g.Screen = screen.ScreenMain
@@ -167,7 +144,7 @@ func (g *Game) Update() error {
 
 		if g.PlayState != nil && !g.PlayState.Playing && g.HighestWave < g.PlayState.Wave-1 {
 			g.HighestWave = g.PlayState.Wave - 1
-			if g.HighestWave > 5 {
+			if g.HighestWave >= 5 {
 				g.MenuItems[2].Shown = true
 			}
 		}

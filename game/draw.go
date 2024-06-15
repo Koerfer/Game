@@ -3,6 +3,7 @@ package game
 import (
 	"fmt"
 	"game/game/cards"
+	"game/game/colours"
 	screen2 "game/game/screen"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/text/v2"
@@ -26,6 +27,16 @@ func (g *Game) Draw(screen *ebiten.Image) {
 
 	g.DrawDividers(screen)
 	g.DrawMenuItems(screen)
+
+	op := &text.DrawOptions{}
+	op.ColorScale.ScaleWithColor(color.White)
+	msg := fmt.Sprintf(`TPS: %0.2f - FPS: %0.2f`, ebiten.ActualTPS(), ebiten.ActualFPS())
+	op.GeoM.Translate(float64(g.WindowSize.CurrentScreenWidth)-170, 0)
+	text.Draw(screen, msg, &text.GoTextFace{
+		Source: g.font,
+		Size:   12,
+	}, op)
+	op.GeoM.Reset()
 }
 
 func (g *Game) CalculateNewFactors() {
@@ -162,7 +173,7 @@ func (g *Game) DrawPlay(screen *ebiten.Image) {
 			Size:   g.WindowSize.CurrentHeightFactor * 1,
 		}, op)
 
-		op.GeoM.Translate(0, g.WindowSize.CurrentHeightFactor*1.1)
+		op.GeoM.Translate(0, g.WindowSize.CurrentHeightFactor*1.5)
 		text.Draw(screen, monstersAttackedText, &text.GoTextFace{
 			Source: g.font,
 			Size:   g.WindowSize.CurrentHeightFactor * 1,
@@ -196,23 +207,37 @@ func (g *Game) DrawPlay(screen *ebiten.Image) {
 		screen.DrawImage(card.PlayImage, &ebiten.DrawImageOptions{
 			GeoM: g.op.GeoM,
 		})
+
+		if card.Active {
+			width := int(card.CurrentWidth * float64(card.ActiveRemaining.Milliseconds()) / float64(card.ActiveTime.Milliseconds()))
+			if width == 0 {
+				continue
+			}
+			g.op.GeoM.Translate(0, -g.WindowSize.CurrentHeightFactor/5)
+			timerBar := ebiten.NewImage(width, int(g.WindowSize.CurrentHeightFactor/5))
+			timerBar.Fill(colours.Green)
+			screen.DrawImage(timerBar, &ebiten.DrawImageOptions{
+				GeoM: g.op.GeoM,
+			})
+		} else if card.CoolDownRemaining != 0 {
+			width := int(card.CurrentWidth * float64(card.CoolDownRemaining.Milliseconds()) / float64(card.CoolDown.Milliseconds()))
+			if width == 0 {
+				continue
+			}
+			g.op.GeoM.Translate(0, -g.WindowSize.CurrentHeightFactor/5)
+			timerBar := ebiten.NewImage(width, int(g.WindowSize.CurrentHeightFactor/5))
+			timerBar.Fill(colours.Red)
+			screen.DrawImage(timerBar, &ebiten.DrawImageOptions{
+				GeoM: g.op.GeoM,
+			})
+		}
+
 	}
 
 	for _, divider := range g.PlayDividers {
 		g.op.GeoM.Reset()
 		g.op.GeoM.Translate(float64(divider.CurrentPosX), float64(divider.CurrentPosY))
 		screen.DrawImage(divider.Image, &ebiten.DrawImageOptions{
-			GeoM: g.op.GeoM,
-		})
-	}
-
-	for _, timer := range g.Timers {
-		if timer == nil {
-			continue
-		}
-		g.op.GeoM.Reset()
-		g.op.GeoM.Translate(timer.CurrentPosX, timer.CurrentPosY)
-		screen.DrawImage(timer.Image, &ebiten.DrawImageOptions{
 			GeoM: g.op.GeoM,
 		})
 	}

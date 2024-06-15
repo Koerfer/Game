@@ -29,11 +29,11 @@ func (cs *Cards) Init() {
 	card6 := &Card{}
 	card6.Init(6, 12, 8, "Test", boldFont, 2, 1, colours.White, colours.Black, colours.Blue)
 
-	card1.PlayCard.addEffect("Passive: Increases damage by %dx\nActive: 10s of %dx single\ntarget damage\nCooldown: %02d s", 2, 5,
+	card1.PlayCard.addEffect("Passive: Increases damage by %dx\nActive: 10s of %dx single\ntarget damage\nCooldown: %02d s", 2, 4,
 		1, 1,
 		1, 0, 10*time.Second, 30*time.Second)
 	card2.PlayCard.addEffect("Passive: Increases number of\ntargets by %dx\nActive: Increases number of\ntargets by a further %dx\nfor 5s\nCooldown: %02d s", 1, 1,
-		2, 3,
+		2, 1,
 		1, 0, 5*time.Second, 30*time.Second)
 	card3.PlayCard.addEffect("Passive: Time remaining goes %dx slower\nuntil highest wave reached\nActive: Deal %d seconds of\ndamage immediately\nCooldown: %02d s", 1, 1,
 		1, 1,

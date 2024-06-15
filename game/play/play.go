@@ -2,6 +2,7 @@ package play
 
 import (
 	"game/game/cards"
+	"math/rand"
 	"time"
 )
 
@@ -38,26 +39,33 @@ func (s *State) Update(timeDelta time.Duration, highestWave int) int8 {
 		return 0
 	}
 
-	if s.TimeSkip != 0 {
-		timeDelta += s.TimeSkip
-		s.TimeSkip = 0
-	}
-
 	for i, activeCard := range s.ActiveCards {
 		if activeCard == nil {
 			continue
 		}
 
-		if activeCard.ActiveRemaining <= 0 {
-			s.deactivateCard(activeCard)
-			s.ActiveCards[i] = nil
+		activeCard.ActiveRemaining -= timeDelta
+		if activeCard.Active && activeCard.ActiveRemaining <= 0 {
+			s.startCooldownForCard(activeCard)
+			continue
+		}
+
+		if !activeCard.Active {
+			activeCard.CoolDownRemaining -= timeDelta
+			if activeCard.CoolDownRemaining <= 0 {
+				s.ActiveCards[i] = nil
+			}
 		}
 	}
 
+	if s.TimeSkip != 0 {
+		timeDelta += s.TimeSkip
+		s.TimeSkip = 0
+	}
+
 	if s.MonstersRemaining == 0 {
-		s.Wave++
 		mod10 := s.Wave % 10
-		s.prepareNewWave(mod10, highestWave)
+		s.prepareNewWave(highestWave)
 
 		if s.Wave > highestWave {
 			if mod10 == 5 {
@@ -67,9 +75,12 @@ func (s *State) Update(timeDelta time.Duration, highestWave int) int8 {
 				}
 				return 1
 			}
+			if mod10 == 0 {
+				return 2
+			}
 		}
 
-		if mod10 == 0 {
+		if mod10 == 0 && rand.Float64() > 0.5 {
 			return 2
 		}
 	}
@@ -96,24 +107,22 @@ func (s *State) Update(timeDelta time.Duration, highestWave int) int8 {
 	return 0
 }
 
-func (s *State) prepareNewWave(mod10, highestWave int) {
+func (s *State) prepareNewWave(highestWave int) {
 	if s.Wave == highestWave {
 		s.TimeSlow = 1
 	}
+	s.Wave++
+	mod10 := s.Wave % 10
 
 	s.MonstersKilled = 0
-	s.NumberOfMonstersExact *= 1.15
-	s.HPPerMonsterCopy *= 1.2
+	s.NumberOfMonstersExact *= 1.08
+	s.HPPerMonsterCopy *= 1.12
 
 	switch mod10 {
-	case 5:
+	case 0, 5:
 		s.NumberOfMonsters = 1
-		s.HPPerMonster = s.HPPerMonsterCopy * s.NumberOfMonstersExact
-		s.HPPerMonsterCopy *= 1.2
-	case 0:
-		s.NumberOfMonsters = 1
-		s.HPPerMonster = s.HPPerMonsterCopy * s.NumberOfMonstersExact
-		s.HPPerMonsterCopy *= 1.2
+		s.HPPerMonster = s.HPPerMonsterCopy * 5
+		s.HPPerMonsterCopy *= 1.12
 	case 1, 6:
 		s.HPPerMonster = s.HPPerMonsterCopy
 		s.NumberOfMonsters = int(s.NumberOfMonstersExact)
@@ -121,7 +130,7 @@ func (s *State) prepareNewWave(mod10, highestWave int) {
 		s.NumberOfMonsters = int(s.NumberOfMonstersExact)
 	}
 
-	s.HPPerMonster *= 1.2
+	s.HPPerMonster *= 1.12
 	s.MonstersRemaining = s.NumberOfMonsters
 	healths := make([]float64, s.NumberOfMonsters)
 	for i := range healths {

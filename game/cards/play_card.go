@@ -6,7 +6,6 @@ import (
 	"game/game/helper"
 	"github.com/hajimehoshi/ebiten/v2"
 	"image"
-	"image/color"
 	"time"
 )
 
@@ -18,7 +17,7 @@ type PlayCard struct {
 	basePosX   float64
 	basePosY   float64
 
-	currentWidth  float64
+	CurrentWidth  float64
 	currentHeight float64
 	CurrentPosX   float64
 	CurrentPosY   float64
@@ -135,7 +134,7 @@ func (c *Card) updatePlayCard(widthFactor, heightFactor float64) {
 		}
 	}
 
-	c.PlayCard.currentWidth = newWidth
+	c.PlayCard.CurrentWidth = newWidth
 	c.PlayCard.currentHeight = newHeight
 	c.PlayCard.CurrentPosX = newX
 	c.PlayCard.CurrentPosY = newY
@@ -152,48 +151,10 @@ func (c *Card) AddToHand(number int, widthFactor, heightFactor float64) {
 }
 
 func (pc *PlayCard) Click(x, y int) bool {
-	if pc.CurrentPosX < float64(x) && pc.CurrentPosX+pc.currentWidth > float64(x) &&
+	if pc.CurrentPosX < float64(x) && pc.CurrentPosX+pc.CurrentWidth > float64(x) &&
 		pc.CurrentPosY < float64(y) && pc.CurrentPosY+pc.currentHeight > float64(y) {
 		return true
 	}
 
 	return false
-}
-
-func (pc *PlayCard) TimerImage(currentTime, totalTime time.Duration, active bool, verticalScale float64) *Timer {
-	var colour color.Color
-	if active {
-		colour = colours.Green
-	} else {
-		colour = colours.Red
-	}
-
-	xMin := pc.CurrentPosX
-	xMax := xMin + pc.currentWidth*float64(currentTime.Milliseconds())/float64(totalTime.Milliseconds())
-	yMin := pc.CurrentPosY - 10*verticalScale/50
-	yMax := pc.CurrentPosY
-
-	if int(pc.currentWidth*float64(currentTime.Milliseconds())/float64(totalTime.Milliseconds())) <= 0 {
-		return nil
-	}
-
-	timerBar := ebiten.NewImageWithOptions(image.Rectangle{
-		Min: image.Point{X: int(xMin), Y: int(yMin)},
-		Max: image.Point{X: int(xMax), Y: int(yMax)},
-	}, &ebiten.NewImageOptions{Unmanaged: false})
-
-	timerBar.Fill(colour)
-
-	return &Timer{
-		CurrentPosX: pc.CurrentPosX,
-		CurrentPosY: pc.CurrentPosY - 10*verticalScale/50,
-		Image:       timerBar,
-	}
-}
-
-type Timer struct {
-	CurrentPosX float64
-	CurrentPosY float64
-
-	Image *ebiten.Image
 }

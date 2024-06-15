@@ -16,8 +16,8 @@ func Start(selectedCards []*cards.PlayCard) *State {
 		HPPerMonsterCopy:         2,
 		MonstersRemaining:        1,
 		MonsterHealth:            []float64{2},
-		DamagePerSecond:          5, // 0.2
-		NumberOfMonstersAttacked: 2, // 1
+		DamagePerSecond:          0.6, // 0.5
+		NumberOfMonstersAttacked: 1,   // 1
 		ActiveCards:              make([]*cards.PlayCard, 3),
 		SingleTargetBoost:        1,
 		TimeSlow:                 1,
