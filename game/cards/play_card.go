@@ -6,6 +6,7 @@ import (
 	"game/game/helper"
 	"github.com/hajimehoshi/ebiten/v2"
 	"image"
+	"strings"
 	"time"
 )
 
@@ -91,11 +92,13 @@ func (pc *PlayCard) addEffect(description string, passiveDamageBoost, activeSing
 
 func (c *Card) updatePlayCard(widthFactor, heightFactor float64) {
 	if c.PlayCard.PassiveDamageBoost != 1 {
-		c.PlayCard.Description = fmt.Sprintf(c.PlayCard.BaseDescription, int(c.PlayCard.PassiveDamageBoost), int(c.PlayCard.ActiveSingleTargetDamageBoost), int(c.PlayCard.CoolDown.Seconds()))
+		c.PlayCard.Description = strings.Replace(fmt.Sprintf(c.PlayCard.BaseDescription, c.PlayCard.PassiveDamageBoost, c.PlayCard.ActiveSingleTargetDamageBoost, int(c.PlayCard.CoolDown.Seconds())), "e+0", "e", 2)
+		c.PlayCard.Description = strings.Replace(c.PlayCard.Description, "e+", "e", 2)
 	} else if c.PlayCard.PassiveMultiTargetBoost != 1 {
-		c.PlayCard.Description = fmt.Sprintf(c.PlayCard.BaseDescription, c.PlayCard.PassiveMultiTargetBoost, c.PlayCard.ActiveMultiTargetBoost, int(c.PlayCard.CoolDown.Seconds()))
+		c.PlayCard.Description = strings.Replace(fmt.Sprintf(c.PlayCard.BaseDescription, float64(c.PlayCard.PassiveMultiTargetBoost), c.PlayCard.ActiveMultiTargetBoost, int(c.PlayCard.CoolDown.Seconds())), "e+0", "e", 1)
+		c.PlayCard.Description = strings.Replace(c.PlayCard.Description, "e+", "e", 1)
 	} else if c.PlayCard.PassiveTimeSlow != 1 {
-		c.PlayCard.Description = fmt.Sprintf(c.PlayCard.BaseDescription, int(c.PlayCard.PassiveTimeSlow), int(c.PlayCard.ActiveTimeSkip.Seconds()), int(c.PlayCard.CoolDown.Seconds()))
+		c.PlayCard.Description = fmt.Sprintf(c.PlayCard.BaseDescription, c.PlayCard.PassiveTimeSlow, int(c.PlayCard.ActiveTimeSkip.Seconds()), int(c.PlayCard.CoolDown.Seconds()))
 	}
 
 	shiftX := 12.0

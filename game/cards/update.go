@@ -39,8 +39,8 @@ func (c *Card) Update(widthFactor, heightFactor float64) {
 	newNameTextSize := helper.GetNewTextSize(c.BaseNameTextSize, heightFactor, newWidth, c.Name)
 
 	c.updatePlayCard(widthFactor, heightFactor)
-	c.currentWidth = newWidth
-	c.currentHeight = newHeight
+	c.CurrentWidth = newWidth
+	c.CurrentHeight = newHeight
 	c.CurrentPosX = newX
 	c.CurrentPosY = newY
 	c.LockedImage = c.createImage(newX, newY, newWidth, newHeight, newNameTextSize, heightFactor, StateLocked)

@@ -58,11 +58,6 @@ func (s *State) Update(timeDelta time.Duration, highestWave int) int8 {
 		}
 	}
 
-	if s.TimeSkip != 0 {
-		timeDelta += s.TimeSkip
-		s.TimeSkip = 0
-	}
-
 	if s.MonstersRemaining == 0 {
 		mod10 := s.Wave % 10
 		s.prepareNewWave(highestWave)
@@ -80,7 +75,7 @@ func (s *State) Update(timeDelta time.Duration, highestWave int) int8 {
 			}
 		}
 
-		if mod10 == 0 && rand.Float64() > 0.5 {
+		if mod10 == 0 && rand.Float64() < float64(s.Wave)/float64(highestWave) {
 			return 2
 		}
 	}
@@ -93,10 +88,11 @@ func (s *State) Update(timeDelta time.Duration, highestWave int) int8 {
 
 	for i := killed; i < upTo; i++ {
 		if i == killed {
-			s.MonsterHealth[i] -= s.DamagePerSecond * timeDelta.Seconds() * s.SingleTargetBoost
+			s.MonsterHealth[i] -= s.DamagePerSecond * (timeDelta.Seconds() + s.TimeSkip.Seconds()) * s.SingleTargetBoost
 		} else {
-			s.MonsterHealth[i] -= s.DamagePerSecond * timeDelta.Seconds()
+			s.MonsterHealth[i] -= s.DamagePerSecond * (timeDelta.Seconds() + s.TimeSkip.Seconds())
 		}
+		s.TimeSkip = 0
 
 		if s.MonsterHealth[i] <= 0 {
 			s.MonstersRemaining -= 1

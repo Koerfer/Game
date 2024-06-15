@@ -4,6 +4,7 @@ import (
 	"game/game/cards"
 	"game/game/colours"
 	"game/game/font"
+	"game/game/helper"
 	"game/game/play"
 	"game/game/screen"
 	"log"
@@ -112,21 +113,38 @@ func (g *Game) Update() error {
 	}
 
 	if g.Screen == screen.ScreenPlay {
+		if inpututil.IsKeyJustPressed(ebiten.KeyDelete) && g.PlayState != nil && g.PlayState.Playing {
+			g.resetGame()
+			g.Screen = screen.ScreenMain
+			return nil
+		}
+		if inpututil.IsKeyJustPressed(ebiten.Key1) {
+			if !g.PlayState.Playing || g.Cards.Selected[0] == nil || g.Cards.Selected[0].Active || g.Cards.Selected[0].CoolDownRemaining > 0 {
+				// Do nothing
+			} else {
+				g.PlayState.CardActivation(g.Cards.Selected[0], 0)
+			}
+		}
+		if inpututil.IsKeyJustPressed(ebiten.Key2) {
+			if !g.PlayState.Playing || g.Cards.Selected[1] == nil || g.Cards.Selected[1].Active || g.Cards.Selected[1].CoolDownRemaining > 0 {
+				// Do nothing
+			} else {
+				g.PlayState.CardActivation(g.Cards.Selected[1], 1)
+			}
+		}
+		if inpututil.IsKeyJustPressed(ebiten.Key3) {
+			if !g.PlayState.Playing || g.Cards.Selected[2] == nil || g.Cards.Selected[2].Active || g.Cards.Selected[2].CoolDownRemaining > 0 {
+				// Do nothing
+			} else {
+				g.PlayState.CardActivation(g.Cards.Selected[2], 2)
+			}
+		}
+
 		pause := g.PlayState.Update(timeDelta, g.HighestWave)
 		switch pause {
 		case -1:
-			for _, selectedCard := range g.Cards.Selected {
-				if selectedCard == nil {
-					continue
-				}
-				selectedCard.CoolDownRemaining = 0
-				selectedCard.ActiveRemaining = 0
-				selectedCard.Active = false
-			}
-			g.StartButton.Name = "START"
-			g.StartButton.Update()
-			g.PlayState = nil
-			g.Screen = screen.ScreenMain
+			g.resetGame()
+			g.Screen = screen.ScreenCards
 		case 0:
 			// do nothing
 		case 1:
@@ -164,6 +182,9 @@ func (g *Game) Update() error {
 				g.PreviousSaveTime = time.Now()
 				continue
 			default:
+				if g.PlayState != nil && !g.PlayState.Playing {
+					g.resetGame()
+				}
 				g.Screen = newScreen
 			}
 		}
@@ -174,18 +195,10 @@ func (g *Game) Update() error {
 				break
 			}
 			for _, card := range g.Cards.Cards {
-				if ebiten.IsKeyPressed(ebiten.KeyShiftRight) || ebiten.IsKeyPressed(ebiten.KeyShiftLeft) || ebiten.IsKeyPressed(ebiten.KeyShift) {
-					upgraded := card.Upgrade(x, y, g.Cards.Upgrades)
-					if upgraded {
-						g.Cards.Upgrades -= 1
-						card.Update(g.WindowSize.CurrentWidthFactor, g.WindowSize.CurrentHeightFactor)
-					}
-					continue
-				}
+				textSize := helper.GetNewTextSize(card.BaseNameTextSize, g.WindowSize.CurrentHeightFactor, card.CurrentWidth, "UPGRADE")
+				action := card.Click(x, y, g.Cards.NumberSelected, g.Cards.Upgrades, textSize)
 
-				added := card.Click(x, y, g.Cards.NumberSelected)
-
-				switch added {
+				switch action {
 				case 1:
 					for i, selectedCard := range g.Cards.Selected {
 						if selectedCard == nil {
@@ -204,10 +217,16 @@ func (g *Game) Update() error {
 							break
 						}
 					}
+				case 0:
+					upgraded := card.Upgrade(x, y, g.Cards.Upgrades)
+					if upgraded {
+						g.Cards.Upgrades -= 1
+						card.Update(g.WindowSize.CurrentWidthFactor, g.WindowSize.CurrentHeightFactor)
+					}
 				default:
 					// do nothing
 				}
-				g.Cards.NumberSelected += added
+				g.Cards.NumberSelected += action
 			}
 		case screen.ScreenMain:
 			newScreen := g.StartButton.Click(x, y)
@@ -248,8 +267,25 @@ func (g *Game) Update() error {
 	}
 
 	if inpututil.IsKeyJustPressed(ebiten.KeyEscape) {
+		if g.PlayState != nil && !g.PlayState.Playing {
+			g.resetGame()
+		}
 		g.Screen = screen.ScreenMain
 	}
 
 	return nil
+}
+
+func (g *Game) resetGame() {
+	for _, selectedCard := range g.Cards.Selected {
+		if selectedCard == nil {
+			continue
+		}
+		selectedCard.CoolDownRemaining = 0
+		selectedCard.ActiveRemaining = 0
+		selectedCard.Active = false
+	}
+	g.StartButton.Name = "START"
+	g.StartButton.Update()
+	g.PlayState = nil
 }

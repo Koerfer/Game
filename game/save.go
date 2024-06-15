@@ -152,7 +152,8 @@ func (g *Game) Save() {
 		saveState.MenuItemShown[i] = menuItem.Shown
 	}
 
-	dumpFile, err := os.Create("game/save/save.bin")
+	pwd, _ := os.Getwd()
+	dumpFile, err := os.Create(pwd + "/save/save.bin")
 	if err != nil {
 		log.Fatalf("unable to create data.bin file: %v", err)
 	}
@@ -181,12 +182,13 @@ func playCardStateConvert(card *cards.PlayCard) *PlayCardSaveState {
 }
 
 func (g *Game) Load() *SaveState {
-	_, err := os.Stat("game/save/save.bin")
+	pwd, _ := os.Getwd()
+	_, err := os.Stat(pwd + "/save/save.bin")
 	if os.IsNotExist(err) {
 		return nil
 	}
 
-	binaryData, err := os.Open("game/save/save.bin")
+	binaryData, err := os.Open(pwd + "/save/save.bin")
 	if err != nil {
 		log.Fatalf("unable to open binary file: %v", err)
 	}

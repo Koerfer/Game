@@ -4,11 +4,13 @@ import (
 	"fmt"
 	"game/game/cards"
 	"game/game/colours"
+	"game/game/helper"
 	screen2 "game/game/screen"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/text/v2"
 	"image/color"
 	"math"
+	"strings"
 )
 
 func (g *Game) Draw(screen *ebiten.Image) {
@@ -102,12 +104,42 @@ func (g *Game) DrawCards(screen *ebiten.Image) {
 			screen.DrawImage(card.UnlockedImage, &ebiten.DrawImageOptions{
 				GeoM: g.op.GeoM,
 			})
+			g.showUpgradeText(screen, card.CurrentPosX, card.CurrentPosY, card.CurrentWidth, card.CurrentHeight,
+				helper.GetNewTextSize(card.BaseNameTextSize, g.WindowSize.CurrentHeightFactor, card.CurrentWidth, "UPGRADE"))
 		case cards.StateSelected:
 			screen.DrawImage(card.SelectedImage, &ebiten.DrawImageOptions{
 				GeoM: g.op.GeoM,
 			})
+			g.showUpgradeText(screen, card.CurrentPosX, card.CurrentPosY, card.CurrentWidth, card.CurrentHeight,
+				helper.GetNewTextSize(card.BaseNameTextSize, g.WindowSize.CurrentHeightFactor, card.CurrentWidth, "UPGRADE"))
 		}
 	}
+}
+
+func (g *Game) showUpgradeText(screen *ebiten.Image, x, y, width, height, textSize float64) {
+	if g.Cards.Upgrades == 0 {
+		return
+	}
+	g.op.GeoM.Translate(6.5, height-textSize-10)
+	background := ebiten.NewImage(int(width)-12, int(height-(height-textSize-10)-5))
+	background.Fill(colours.GreenTrans)
+	screen.DrawImage(background, &ebiten.DrawImageOptions{
+		GeoM:  g.op.GeoM,
+		Blend: ebiten.BlendSourceAtop,
+	})
+
+	op := &text.DrawOptions{}
+	op.ColorScale.ScaleWithColor(colours.Green)
+	op.PrimaryAlign = text.AlignCenter
+
+	posX := width/2 + x
+	posY := y + height - textSize - 10
+	op.GeoM.Translate(posX, posY)
+
+	text.Draw(screen, "UPGRADE", &text.GoTextFace{
+		Source: g.font,
+		Size:   textSize,
+	}, op)
 }
 
 func (g *Game) DrawMain(screen *ebiten.Image) {
@@ -124,20 +156,13 @@ func (g *Game) DrawPlay(screen *ebiten.Image) {
 	timeRemainingText := fmt.Sprintf(`Time: %02d:%02d`, int(math.Max(g.PlayState.TimeRemaining.Minutes(), 0)), int(math.Max(g.PlayState.TimeRemaining.Seconds(), 0))%60)
 	waveText := fmt.Sprintf(`Wave: %d`, g.PlayState.Wave)
 	numberMonstersText := fmt.Sprintf(`#Monsters: %d`, g.PlayState.NumberOfMonsters)
-	hpPerMonsterText := fmt.Sprintf(`HP Per Monster: %d`, int(g.PlayState.HPPerMonster))
-	if g.PlayState.HPPerMonster < 100 {
-		hpPerMonsterText = fmt.Sprintf(`HP Per Monster: %.1f`, g.PlayState.HPPerMonster)
-	}
+	hpPerMonsterText := strings.Replace(fmt.Sprintf(`HP Per Monster: %.3g`, g.PlayState.HPPerMonster), "e+0", "e", 1)
+	hpPerMonsterText = strings.Replace(hpPerMonsterText, "e+", "e", 1)
 	numberMonstersRemainingText := fmt.Sprintf(`Monsters Remaining: %d`, g.PlayState.MonstersRemaining)
 	monstersAttackedText := fmt.Sprintf(`Monsters Attacked: %d`, g.PlayState.NumberOfMonstersAttacked)
-	damagePerSecondSingleText := fmt.Sprintf(`Single Damage Per Second: %d`, int(g.PlayState.DamagePerSecond*g.PlayState.SingleTargetBoost))
-	if g.PlayState.DamagePerSecond*g.PlayState.SingleTargetBoost < 100 {
-		damagePerSecondSingleText = fmt.Sprintf(`Single Damage Per Second: %.1f`, g.PlayState.DamagePerSecond*g.PlayState.SingleTargetBoost)
-	}
-	damagePerSecondMultiText := fmt.Sprintf(`Multi Damage Per Second: %d`, int(g.PlayState.DamagePerSecond))
-	if g.PlayState.DamagePerSecond < 100 {
-		damagePerSecondMultiText = fmt.Sprintf(`Multi Damage Per Second: %.1f`, g.PlayState.DamagePerSecond)
-	}
+	damagePerSecondSingleText := strings.Replace(fmt.Sprintf(`Single Damage Per Second: %.3g`, g.PlayState.DamagePerSecond*g.PlayState.SingleTargetBoost), "e+0", "e", 1)
+	damagePerSecondSingleText = strings.Replace(damagePerSecondSingleText, "e+", "e", 1)
+	damagePerSecondMultiText := strings.Replace(fmt.Sprintf(`Multi Damage Per Second: %.3g`, g.PlayState.DamagePerSecond), "e+", "e", 1)
 	cardUpgradesText := fmt.Sprintf(`Card Upgrades Available: %d`, g.Cards.Upgrades)
 
 	op := &text.DrawOptions{}
@@ -210,7 +235,7 @@ func (g *Game) DrawPlay(screen *ebiten.Image) {
 
 		if card.Active {
 			width := int(card.CurrentWidth * float64(card.ActiveRemaining.Milliseconds()) / float64(card.ActiveTime.Milliseconds()))
-			if width == 0 {
+			if width <= 0 {
 				continue
 			}
 			g.op.GeoM.Translate(0, -g.WindowSize.CurrentHeightFactor/5)
@@ -221,7 +246,7 @@ func (g *Game) DrawPlay(screen *ebiten.Image) {
 			})
 		} else if card.CoolDownRemaining != 0 {
 			width := int(card.CurrentWidth * float64(card.CoolDownRemaining.Milliseconds()) / float64(card.CoolDown.Milliseconds()))
-			if width == 0 {
+			if width <= 0 {
 				continue
 			}
 			g.op.GeoM.Translate(0, -g.WindowSize.CurrentHeightFactor/5)

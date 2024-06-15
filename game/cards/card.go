@@ -5,6 +5,8 @@ import (
 	"github.com/hajimehoshi/ebiten/v2/text/v2"
 	"image"
 	"image/color"
+	"math"
+	"time"
 )
 
 type Card struct {
@@ -21,8 +23,8 @@ type Card struct {
 	basePosX   float64
 	basePosY   float64
 
-	currentWidth  float64
-	currentHeight float64
+	CurrentWidth  float64
+	CurrentHeight float64
 	CurrentPosX   float64
 	CurrentPosY   float64
 
@@ -60,8 +62,8 @@ func (c *Card) Init(id int, x, y float64, name string, font *text.GoTextFaceSour
 	c.baseHeight = 8
 	c.basePosX = x
 	c.basePosY = y
-	c.currentWidth = 4
-	c.currentHeight = 8
+	c.CurrentWidth = 4
+	c.CurrentHeight = 8
 	c.CurrentPosX = x
 	c.CurrentPosY = y
 	c.SelectedImage = cardImage
@@ -80,16 +82,22 @@ func (c *Card) Init(id int, x, y float64, name string, font *text.GoTextFaceSour
 	c.addPlayCard()
 }
 
-func (c *Card) Click(x, y, numberSelected int) int {
-	if c.CurrentPosX < float64(x) && c.CurrentPosX+c.currentWidth > float64(x) &&
-		c.CurrentPosY < float64(y) && c.CurrentPosY+c.currentHeight > float64(y) {
+func (c *Card) Click(x, y, numberSelected, upgradesAvailable int, textSize float64) int {
+	if c.CurrentPosX < float64(x) && c.CurrentPosX+c.CurrentWidth > float64(x) &&
+		c.CurrentPosY < float64(y) && c.CurrentPosY+c.CurrentHeight > float64(y) {
 		switch c.State {
 		case StateLocked:
-			return 0
+			return -100
 		case StateSelected:
+			if upgradesAvailable != 0 && c.CurrentPosY+c.CurrentHeight-textSize-10 < float64(y) {
+				return 0
+			}
 			c.State = StateUnlocked
 			return -1
 		case StateUnlocked:
+			if upgradesAvailable != 0 && c.CurrentPosY+c.CurrentHeight-textSize-10 < float64(y) {
+				return 0
+			}
 			if numberSelected < 3 {
 				c.State = StateSelected
 				return 1
@@ -102,17 +110,14 @@ func (c *Card) Click(x, y, numberSelected int) int {
 }
 
 func (c *Card) Upgrade(x, y, upgrades int) bool {
-	if c.CurrentPosX < float64(x) && c.CurrentPosX+c.currentWidth > float64(x) &&
-		c.CurrentPosY < float64(y) && c.CurrentPosY+c.currentHeight > float64(y) {
+	if c.CurrentPosX < float64(x) && c.CurrentPosX+c.CurrentWidth > float64(x) &&
+		c.CurrentPosY < float64(y) && c.CurrentPosY+c.CurrentHeight > float64(y) {
 		switch c.State {
 		case StateLocked:
 			return false
 		default:
 			if upgrades == 0 {
 				return false
-			}
-			if c.PlayCard.ActiveMultiTargetBoost != 1 {
-				c.PlayCard.ActiveMultiTargetBoost *= 2
 			}
 			if c.PlayCard.PassiveMultiTargetBoost != 1 {
 				c.PlayCard.PassiveMultiTargetBoost *= 2
@@ -125,7 +130,7 @@ func (c *Card) Upgrade(x, y, upgrades int) bool {
 			}
 			if c.PlayCard.PassiveTimeSlow != 1 {
 				c.PlayCard.PassiveTimeSlow *= 2
-				c.PlayCard.ActiveTimeSkip *= 2
+				c.PlayCard.ActiveTimeSkip = time.Duration(math.Min(c.PlayCard.ActiveTimeSkip.Seconds()*2, 60)) * time.Second
 			}
 
 			return true

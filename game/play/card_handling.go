@@ -3,6 +3,10 @@ package play
 import "game/game/cards"
 
 func (s *State) CardActivation(card *cards.PlayCard, number int) {
+	if card.Active {
+		return
+	}
+
 	card.Active = true
 	card.ActiveRemaining = card.ActiveTime
 	s.SingleTargetBoost *= card.ActiveSingleTargetDamageBoost / card.PassiveDamageBoost
